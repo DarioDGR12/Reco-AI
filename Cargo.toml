@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = ["crates/reco-core", "crates/reco-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.83"
+repository = "https://github.com/DarioDGR12/Reco-AI"
+homepage = "https://github.com/DarioDGR12/Reco-AI"
+authors = ["Reco AI contributors"]
+
+[workspace.dependencies]
+reco-core = { path = "crates/reco-core", version = "0.1.0" }
+clap = { version = "4.5", features = ["derive"] }
+owo-colors = "4.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sysinfo = "0.33"
+thiserror = "2.0"
+nvml-wrapper = "0.11"
