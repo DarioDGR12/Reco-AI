@@ -197,7 +197,7 @@ fn draw(
                 Style::default().fg(MAUVE).add_modifier(Modifier::BOLD),
             )),
             Line::from(" ↑↓ j k    moverse"),
-            Line::from(" enter     descargar y abrir Prueba"),
+            Line::from(" enter     descargar y abrir la ventana"),
             Line::from(" /         buscar repo, archivo o quant"),
             Line::from(" d         solo modelos ya en disco"),
             Line::from(" ?         esta ayuda"),
@@ -269,7 +269,10 @@ fn detail_panel(state: &AiTui) -> Paragraph<'static> {
             format_gib(rec.size_bytes),
             if rec.size_estimated { " est." } else { "" }
         )),
-        Line::from(Span::styled(format!("disco  {local}"), Style::default().fg(CYAN))),
+        Line::from(Span::styled(
+            format!("disco  {local}"),
+            Style::default().fg(CYAN),
+        )),
         Line::from(""),
         Line::from(format!("score   {:>5.1}", rec.total)),
         Line::from(format!("compat  {:>5.1}", rec.scores.compatibility)),

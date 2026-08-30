@@ -15,4 +15,5 @@ echo
 echo "Listo. Prueba:"
 echo "  reco"
 echo "  reco doctor"
+echo "  reco desktop    # ventana (si compilaste scripts/build-desktop.sh)"
 echo "  reco ai"

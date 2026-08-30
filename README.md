@@ -26,7 +26,7 @@
 
 ## Demo
 
-`reco ai` reads your hardware, indexes GGUF repos from Hugging Face, ranks a quant that fits (40/20/20/20), and opens a Ratatui catalog. Enter downloads the file with `reco run`.
+`reco ai` reads your hardware, indexes GGUF repos from Hugging Face, ranks a quant that fits (40/20/20/20), and opens a catalog. Enter downloads the GGUF and opens the **Prueba** window (Tauri). Use `--tui` to stay in the terminal.
 
 <p align="center">
   <img src="docs/assets/demo-reco-ai.gif" alt="reco ai detecting hardware" width="820" />
@@ -56,7 +56,7 @@ Raw hardware profile:
     </td>
     <td align="center" width="33%">
       <img src="docs/assets/preview-prueba.gif" alt="Prueba chat" /><br />
-      <sub><b>Prueba</b> — chat TUI o ventana Tauri, historial SQLite</sub>
+      <sub><b>Prueba</b> — ventana Tauri (catálogo + chat) · historial SQLite · TUI con <code>--tui</code></sub>
     </td>
     <td align="center" width="33%">
       <img src="docs/assets/preview-serve.gif" alt="reco serve" /><br />
@@ -73,8 +73,8 @@ Raw hardware profile:
 | --- | --- |
 | **Hardware-aware picks** | CPU, RAM, NVIDIA (NVML / `nvidia-smi`), Linux DRM, Apple Metal. Score: 40% fit, 20% speed, 20% quality, 20% popularity. |
 | **GGUF catalog** | Live Hugging Face index (`filter=gguf`), 12h cache, offline seed. |
-| **One command** | `reco run` downloads the GGUF and opens **Prueba**. |
-| **Prueba** | Terminal chat + SQLite history. Optional Tauri window (`reco-desktop`) over the same store. |
+| **One command** | `reco run` downloads the GGUF and opens the **Prueba** window. |
+| **Prueba** | Tauri desktop chat (same SQLite as the CLI). Catalog + model switcher if you launch `reco desktop` with no args. `--tui` keeps the Ratatui chat. |
 | **`reco serve`** | Local OpenAI-style API + generated `sk-reco-...` key. |
 | **llama.cpp** | Real tokens via `llama-cli` on PATH (or `reco config set llama-cli`). |
 | **BYOK** | Your OpenAI / Anthropic keys next to local GGUF (`reco config`). |
@@ -88,7 +88,7 @@ Raw hardware profile:
 | Run a model locally | download + `llama-cli` (or BYOK) | excellent | DIY |
 | Catalog size | HF GGUF index (top download slice) | curated subset | huge |
 | “Will this fit my 8 GB 4060?” | measured hardware + 40/20/20/20 | you guess the tag | you guess the quant |
-| Native chat + history | Prueba TUI + SQLite (+ Tauri) | separate apps | browser / spaces |
+| Native chat + history | Prueba window + SQLite (TUI fallback) | separate apps | browser / spaces |
 | Local OpenAI-style API | `reco serve` | yes | no |
 
 Reco is the missing middle: **HF’s catalog, Ollama’s “just run it”, plus a real hardware check**.
@@ -107,13 +107,16 @@ cargo install --git https://github.com/DarioDGR12/Reco-AI --path crates/reco-cli
 
 ```bash
 reco                         # estado de tu máquina y siguientes pasos
-reco doctor                  # llama.cpp, claves, caché
-reco ai                      # catálogo TUI · enter descarga · / busca
-reco run Qwen2.5-7B          # descarga + Prueba
+reco doctor                  # llama.cpp, claves, caché, ventana
+reco desktop                 # ventana Prueba: catálogo + chat
+reco ai                      # catálogo TUI · enter abre la ventana
+reco run Qwen2.5-7B          # descarga + ventana Prueba
 reco api create Qwen2.5-7B --name mi-app
 reco api start               # esta máquina sirve las APIs
 reco api code mi-app --client python
 ```
+
+The desktop window is `reco-desktop` (Tauri). Build it with `scripts/build-desktop.sh` (needs WebKitGTK on Linux) and put the binary next to `reco` or on `PATH`. `reco run` / `reco chat` / `reco ai` open that window when it is present; `--tui` forces the terminal chat.
 
 ## Your machine is the server
 
@@ -146,9 +149,10 @@ CLI copy is Spanish; crate names and this README are English.
 | | |
 | --- | --- |
 | `reco` | Home: hardware, motor, modelos en disco, chats recientes |
-| `reco ai` | Ranked catalog (TUI). `--list` / `--json` to skip the UI |
-| `reco run <modelo>` | Download the GGUF that fits, then open Prueba |
-| `reco chat <modelo>` | Reopen the last conversation |
+| `reco ai` | Ranked catalog (TUI). Enter opens the Prueba window |
+| `reco desktop [modelo]` | Tauri window: catalog picker, or chat if you pass a model |
+| `reco run <modelo>` | Download the GGUF that fits, then open the Prueba window |
+| `reco chat <modelo>` | Reopen the last conversation (`--tui` = terminal) |
 | `reco api` | Generate / list / start / code custom APIs for other apps |
 | `reco serve` | Hub of all APIs, or `reco serve <modelo>` for one |
 | `reco models` | List (or `rm`) cached GGUFs |
@@ -176,6 +180,7 @@ crates/reco-core      hardware, GGUF types, scoring, chat store, InferEngine
 crates/reco-catalog   Hugging Face client + cache + seed
 crates/reco-cli       `reco` binary (clap + Ratatui)
 crates/reco-desktop   Tauri app “Prueba” (not a workspace member; needs WebKitGTK)
+                      build: scripts/build-desktop.sh
 
 Linux packages: see [packaging/README.md](packaging/README.md).
 ```

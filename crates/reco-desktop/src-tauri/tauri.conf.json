@@ -11,8 +11,10 @@
     "windows": [
       {
         "title": "Prueba — Reco AI",
-        "width": 920,
-        "height": 680
+        "width": 1100,
+        "height": 740,
+        "minWidth": 860,
+        "minHeight": 560
       }
     ],
     "security": {

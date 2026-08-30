@@ -1,21 +1,29 @@
 # reco-desktop
 
-Tauri 2 window for **Prueba**. Same SQLite history (`~/.cache/reco/reco.db`) and the same `InferEngine` as `reco chat`.
+Tauri 2 window for **Prueba**: hardware-aware GGUF catalog, download, and chat.
 
-This crate is **not** a workspace member: building it needs WebKitGTK (`libwebkit2gtk-4.1-dev` on Debian/Ubuntu). The CLI still opens the Ratatui Prueba TUI when this binary is missing.
+Same SQLite history (`~/.cache/reco/reco.db`) and the same `InferEngine` as `reco chat`.
+
+This crate is **not** a workspace member: building it needs WebKitGTK (`libwebkit2gtk-4.1-dev` on Debian/Ubuntu). The CLI opens the Ratatui Prueba TUI when this binary is missing, or when you pass `--tui`.
 
 ```bash
 # system deps (Debian/Ubuntu)
-sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
+sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+# from the repo root (puts the binary in target/release/ next to reco)
+scripts/build-desktop.sh
+
+# or
 cd crates/reco-desktop
 npm install
 npm run tauri build
 ```
 
-`reco run` / `reco chat` spawn `reco-desktop` (or `reco-prueba`) from `PATH` or next to the `reco` binary when present:
+`reco desktop` opens the catalog. `reco ai` / `reco run` / `reco chat` spawn `reco-desktop` (or `reco-prueba`) from `RECO_DESKTOP`, next to the `reco` binary, `~/.cargo/bin`, or `PATH`:
 
 ```bash
+reco desktop
+reco desktop Qwen2.5-7B --demo
 reco-desktop --repo Qwen/Qwen2.5-7B-Instruct-GGUF --file qwen2.5-7b-instruct-q4_k_m.gguf
 reco-desktop --demo
 ```

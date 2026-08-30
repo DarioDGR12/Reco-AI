@@ -3,8 +3,8 @@ use reco_catalog::DownloadedModel;
 use reco_core::chat::Conversation;
 use reco_core::infer::LlamaCliEngine;
 use reco_core::{
-    config_path, format_gib, AccelBackend, ApiRegistry, CatalogSource, HardwareProfile,
-    RecoConfig, Recommendation,
+    config_path, format_gib, AccelBackend, ApiRegistry, CatalogSource, HardwareProfile, RecoConfig,
+    Recommendation,
 };
 
 use crate::doctor::DoctorItem;
@@ -237,18 +237,16 @@ pub fn print_home(
     }
 
     println!("{}", "Siguiente".bold());
+    println!("  {}   catálogo que cabe en esta máquina", "reco ai".cyan());
     println!(
-        "  {}   catálogo que cabe en esta máquina",
-        "reco ai".cyan()
+        "  {}  ventana Prueba (catálogo + chat)",
+        "reco desktop".cyan()
     );
     println!(
-        "  {}  descarga y abre Prueba",
+        "  {}  descarga y abre la ventana",
         "reco run <modelo>".cyan()
     );
-    println!(
-        "  {}  llama.cpp, claves y caché",
-        "reco doctor".cyan()
-    );
+    println!("  {}  llama.cpp, claves y caché", "reco doctor".cyan());
     println!(
         "  {}  API para otra app (esta máquina sirve)",
         "reco api create <modelo> --name mi-app".cyan()
@@ -300,7 +298,10 @@ pub fn print_models(models: &[DownloadedModel], json: bool) {
                 })
             })
             .collect();
-        println!("{}", serde_json::to_string_pretty(&rows).unwrap_or_default());
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&rows).unwrap_or_default()
+        );
         return;
     }
     if models.is_empty() {
@@ -329,10 +330,7 @@ pub fn print_models(models: &[DownloadedModel], json: bool) {
         );
     }
     println!();
-    println!(
-        "  {}",
-        "reco models rm <repo>   borra del caché".dimmed()
-    );
+    println!("  {}", "reco models rm <repo>   borra del caché".dimmed());
 }
 
 pub fn print_config(cfg: &RecoConfig, json: bool) {
@@ -348,9 +346,17 @@ pub fn print_config(cfg: &RecoConfig, json: bool) {
     }
     println!("{}  {}", "Config".bold(), config_path().display().dimmed());
     println!();
-    println!("  {}  {}", "openai-key     ".dimmed(), empty_or(&cfg.byok.openai_key));
+    println!(
+        "  {}  {}",
+        "openai-key     ".dimmed(),
+        empty_or(&cfg.byok.openai_key)
+    );
     println!("  {}  {}", "openai-base    ".dimmed(), cfg.byok.openai_base);
-    println!("  {}  {}", "openai-model   ".dimmed(), cfg.byok.openai_model);
+    println!(
+        "  {}  {}",
+        "openai-model   ".dimmed(),
+        cfg.byok.openai_model
+    );
     println!(
         "  {}  {}",
         "anthropic-key  ".dimmed(),
