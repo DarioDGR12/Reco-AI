@@ -7,36 +7,66 @@
     <link rel="stylesheet" href="app.css" />
   </head>
   <body>
-    <aside>
-      <div class="brand">
-        <strong>Prueba</strong>
-        <span>Reco AI</span>
-      </div>
-      <button type="button" id="new-chat">+ chat nuevo</button>
-      <nav id="convos"></nav>
-    </aside>
-    <section class="main">
-      <header>
-        <div>
-          <h1 id="model">Reco AI</h1>
-          <p id="engine" class="dim"></p>
+    <section id="picker" class="view">
+      <header class="picker-top">
+        <div class="brand">
+          <strong>Reco AI</strong>
+          <span>Elige un modelo que cabe en esta máquina</span>
+        </div>
+        <div class="hw" id="hw">
+          <span id="hw-cpu">…</span>
+          <span id="hw-ram">…</span>
+          <span id="hw-gpu">…</span>
         </div>
       </header>
-      <main id="log">
-        <div class="empty" id="empty">
-          Elige un modelo con <code>reco run</code> y escribe aquí.
+      <div class="picker-bar">
+        <p id="catalog-meta" class="dim">Cargando catálogo GGUF…</p>
+        <div class="picker-actions">
+          <button type="button" id="refresh" class="ghost">Actualizar</button>
         </div>
-      </main>
-      <footer>
-        <form id="form">
-          <textarea
-            id="input"
-            rows="1"
-            placeholder="Mensaje…  Enter envía · Shift+Enter salto"
-          ></textarea>
-          <button type="submit">Enviar</button>
-        </form>
-      </footer>
+      </div>
+      <div id="local-wrap" class="hidden">
+        <h2>En este disco</h2>
+        <div id="local" class="cards"></div>
+      </div>
+      <h2>Recomendados para ti</h2>
+      <div id="cards" class="cards"></div>
+    </section>
+
+    <section id="chat" class="view hidden">
+      <aside>
+        <div class="brand">
+          <strong>Prueba</strong>
+          <span>Reco AI</span>
+        </div>
+        <button type="button" id="back-models" class="ghost">← modelos</button>
+        <button type="button" id="new-chat">+ chat nuevo</button>
+        <nav id="convos"></nav>
+      </aside>
+      <div class="main">
+        <header>
+          <div>
+            <h1 id="model">Reco AI</h1>
+            <p id="engine" class="dim"></p>
+          </div>
+          <span id="demo-badge" class="badge hidden">demo</span>
+        </header>
+        <main id="log">
+          <div class="empty" id="empty">
+            Elige un modelo y escribe aquí.
+          </div>
+        </main>
+        <footer>
+          <form id="form">
+            <textarea
+              id="input"
+              rows="1"
+              placeholder="Mensaje…  Enter envía · Shift+Enter salto"
+            ></textarea>
+            <button type="submit" id="send">Enviar</button>
+          </form>
+        </footer>
+      </div>
     </section>
     <script src="app.js"></script>
   </body>

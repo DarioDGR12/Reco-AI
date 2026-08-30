@@ -2,7 +2,7 @@
   "name": "reco-desktop",
   "private": true,
   "version": "0.2.0",
-  "description": "Reco AI — Prueba desktop window (Tauri)",
+  "description": "Reco AI — Prueba desktop app (Tauri catalog + chat)",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",

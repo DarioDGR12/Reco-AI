@@ -45,9 +45,7 @@ pub fn collect(profile: &reco_core::HardwareProfile) -> Vec<DoctorItem> {
             ok: Some(false),
             name: "llama-cli".into(),
             detail: "no está en PATH".into(),
-            hint: Some(
-                "instala llama.cpp o: reco config set llama-cli /ruta/llama-cli".into(),
-            ),
+            hint: Some("instala llama.cpp o: reco config set llama-cli /ruta/llama-cli".into()),
         }),
     }
 
@@ -125,6 +123,21 @@ pub fn collect(profile: &reco_core::HardwareProfile) -> Vec<DoctorItem> {
         hint: None,
     });
 
+    match crate::run::desktop_binary() {
+        Some(path) => items.push(DoctorItem {
+            ok: Some(true),
+            name: "ventana".into(),
+            detail: path.display().to_string(),
+            hint: Some("reco desktop   ·   reco run abre esta ventana".into()),
+        }),
+        None => items.push(DoctorItem {
+            ok: None,
+            name: "ventana".into(),
+            detail: "reco-desktop no está instalado".into(),
+            hint: Some("scripts/build-desktop.sh  (WebKitGTK) · reco run --tui".into()),
+        }),
+    }
+
     let apis = reco_core::ApiRegistry::load();
     items.push(DoctorItem {
         ok: Some(true),
@@ -163,5 +176,6 @@ mod tests {
         assert!(items.iter().any(|i| i.name == "hardware"));
         assert!(items.iter().any(|i| i.name == "llama-cli"));
         assert!(items.iter().any(|i| i.name == "config"));
+        assert!(items.iter().any(|i| i.name == "ventana"));
     }
 }

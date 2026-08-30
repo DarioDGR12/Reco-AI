@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use owo_colors::OwoColorize;
@@ -72,9 +72,30 @@ pub fn resolve_engine(
     pick_engine(&cfg, &rec.repo_id, gguf, kind).map_err(|err| err.to_string())
 }
 
-pub fn open_prueba(rec: &Recommendation, demo: bool, provider: &str) -> Result<(), String> {
-    if !demo && try_launch_desktop(rec, provider)? {
-        return Ok(());
+pub fn open_prueba(
+    rec: &Recommendation,
+    demo: bool,
+    provider: &str,
+    force_tui: bool,
+) -> Result<(), String> {
+    if !force_tui {
+        match try_launch_desktop(Some(rec), demo, provider) {
+            Ok(true) => {
+                println!("{} {}", "Prueba".bold(), "ventana Tauri".cyan());
+                return Ok(());
+            }
+            Ok(false) => {
+                eprintln!(
+                    "{}",
+                    "sin reco-desktop; abriendo Prueba en la terminal.".dimmed()
+                );
+                eprintln!(
+                    "  {}",
+                    "ventana: scripts/build-desktop.sh   ·   forzar TUI: --tui".dimmed()
+                );
+            }
+            Err(err) => return Err(err),
+        }
     }
     let picked = resolve_engine(rec, demo, provider)?;
     let db = cache_root().join("reco.db");
@@ -87,34 +108,116 @@ pub fn open_prueba(rec: &Recommendation, demo: bool, provider: &str) -> Result<(
     prueba::run(&store, rec, picked).map_err(|err| err.to_string())
 }
 
-fn try_launch_desktop(rec: &Recommendation, provider: &str) -> Result<bool, String> {
-    let mut candidates = Vec::new();
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            candidates.push(dir.join("reco-desktop"));
-            candidates.push(dir.join("reco-prueba"));
+pub fn open_desktop_picker(demo: bool, provider: &str) -> Result<(), String> {
+    match try_launch_desktop(None, demo, provider) {
+        Ok(true) => {
+            println!("{} {}", "Prueba".bold(), "ventana Tauri".cyan());
+            Ok(())
+        }
+        Ok(false) => Err(
+            "no encontré reco-desktop. Compílalo con scripts/build-desktop.sh y déjalo en PATH, en ~/.cargo/bin o junto a reco.".into(),
+        ),
+        Err(err) => Err(err),
+    }
+}
+
+/// First existing `reco-desktop` / `reco-prueba`, if any.
+pub fn desktop_binary() -> Option<PathBuf> {
+    for candidate in desktop_candidates() {
+        if is_path_name(&candidate) {
+            if let Some(found) = look_on_path(&candidate.to_string_lossy()) {
+                return Some(found);
+            }
+            continue;
+        }
+        if candidate.is_file() {
+            return Some(candidate);
         }
     }
-    for name in ["reco-desktop", "reco-prueba"] {
-        candidates.push(PathBuf::from(name));
+    None
+}
+
+pub fn desktop_candidates() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    let mut push = |path: PathBuf| {
+        if !out.contains(&path) {
+            out.push(path);
+        }
+    };
+
+    if let Ok(explicit) = std::env::var("RECO_DESKTOP") {
+        if !explicit.is_empty() {
+            push(PathBuf::from(explicit));
+        }
     }
-    for bin in candidates {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            push(dir.join("reco-desktop"));
+            push(dir.join("reco-prueba"));
+        }
+    }
+    if let Ok(cargo_home) = std::env::var("CARGO_HOME") {
+        let cargo_bin = PathBuf::from(cargo_home).join("bin");
+        push(cargo_bin.join("reco-desktop"));
+        push(cargo_bin.join("reco-prueba"));
+    }
+    if let Some(home) = std::env::var_os("HOME") {
+        let home = PathBuf::from(home);
+        push(home.join(".cargo/bin/reco-desktop"));
+        push(home.join(".cargo/bin/reco-prueba"));
+        push(home.join(".local/bin/reco-desktop"));
+        push(home.join(".local/bin/reco-prueba"));
+    }
+    push(PathBuf::from("reco-desktop"));
+    push(PathBuf::from("reco-prueba"));
+    out
+}
+
+fn is_path_name(path: &Path) -> bool {
+    path.components().count() == 1
+}
+
+fn look_on_path(name: &str) -> Option<PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path).find_map(|dir| {
+        let candidate = dir.join(name);
+        candidate.is_file().then_some(candidate)
+    })
+}
+
+fn try_launch_desktop(
+    rec: Option<&Recommendation>,
+    demo: bool,
+    provider: &str,
+) -> Result<bool, String> {
+    for bin in desktop_candidates() {
         let mut cmd = Command::new(&bin);
-        cmd.arg("--repo")
-            .arg(&rec.repo_id)
-            .arg("--file")
-            .arg(&rec.filename)
-            .arg("--provider")
-            .arg(provider);
+        if let Some(rec) = rec {
+            cmd.arg("--repo")
+                .arg(&rec.repo_id)
+                .arg("--file")
+                .arg(&rec.filename);
+        }
+        cmd.arg("--provider").arg(provider);
+        if demo {
+            cmd.arg("--demo");
+        }
         match cmd.status() {
-            Ok(_) => return Ok(true),
+            Ok(status) if status.success() => return Ok(true),
+            Ok(status) => {
+                return Err(format!("{} salió con {}", display_bin(&bin), status));
+            }
             Err(err) if err.kind() == io::ErrorKind::NotFound => continue,
             Err(err) => {
-                return Err(format!("no pude abrir {}: {err}", bin.display()));
+                return Err(format!("no pude abrir {}: {err}", display_bin(&bin)));
             }
         }
     }
     Ok(false)
+}
+
+fn display_bin(path: &Path) -> String {
+    path.display().to_string()
 }
 
 fn progress_bar(written: u64, total: Option<u64>, elapsed: f64) -> String {
@@ -136,5 +239,32 @@ fn progress_bar(written: u64, total: Option<u64>, elapsed: f64) -> String {
             )
         }
         None => format!("{}{speed}", format_gib(written)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn candidates_always_include_path_names() {
+        let list = desktop_candidates();
+        assert!(list.iter().any(|p| p == Path::new("reco-desktop")));
+        assert!(list.iter().any(|p| p == Path::new("reco-prueba")));
+    }
+
+    #[test]
+    fn reco_desktop_env_is_first_candidate() {
+        std::env::set_var("RECO_DESKTOP", "/tmp/custom-reco-desktop-1de9");
+        let list = desktop_candidates();
+        std::env::remove_var("RECO_DESKTOP");
+        assert_eq!(list[0], PathBuf::from("/tmp/custom-reco-desktop-1de9"));
+    }
+
+    #[test]
+    fn home_cargo_bin_is_searched() {
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/home/reco".into());
+        let expected = PathBuf::from(&home).join(".cargo/bin/reco-desktop");
+        assert!(desktop_candidates().contains(&expected));
     }
 }

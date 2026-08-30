@@ -26,8 +26,8 @@ use render::{print_ai, print_config, print_doctor, print_home, print_hw, print_m
     name = "reco",
     version,
     about = "Reco AI — elige y corre el modelo que cabe en tu máquina",
-    long_about = "Reco lee tu hardware, indexa GGUF en Hugging Face y te deja chatear o servir el modelo en un comando.\n\nSin argumentos muestra el estado de esta máquina.",
-    after_help = "Ejemplos:\n  reco                      estado y siguientes pasos\n  reco api create Qwen2.5-7B --name mi-app\n  reco api start            tu máquina sirve las APIs\n  reco api code mi-app --client python\n  reco ai                   catálogo que cabe aquí"
+    long_about = "Reco lee tu hardware, indexa GGUF en Hugging Face y te deja chatear o servir el modelo en un comando.\n\nSin argumentos muestra el estado de esta máquina. Elegir un modelo abre la ventana Tauri (Prueba); usa --tui si quieres el chat en la terminal.",
+    after_help = "Ejemplos:\n  reco                      estado y siguientes pasos\n  reco desktop              ventana Prueba (catálogo + chat)\n  reco ai                   catálogo · enter abre la ventana\n  reco run Qwen2.5-7B       descarga y abre Prueba\n  reco api create Qwen2.5-7B --name mi-app"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -60,7 +60,7 @@ enum Commands {
         #[arg(long, hide = true)]
         fixture: Option<String>,
     },
-    /// Descarga el GGUF y abre Prueba
+    /// Descarga el GGUF y abre la ventana Prueba
     Run {
         modelo: String,
         #[arg(long)]
@@ -69,6 +69,9 @@ enum Commands {
         demo: bool,
         #[arg(long)]
         no_chat: bool,
+        /// Chat en la terminal en vez de la ventana Tauri
+        #[arg(long)]
+        tui: bool,
         #[arg(long, default_value = "auto")]
         provider: String,
         #[arg(long)]
@@ -83,10 +86,30 @@ enum Commands {
         modelo: String,
         #[arg(long)]
         demo: bool,
+        /// Chat en la terminal en vez de la ventana Tauri
+        #[arg(long)]
+        tui: bool,
         #[arg(long, default_value = "auto")]
         provider: String,
         #[arg(long)]
         offline: bool,
+        #[arg(long, hide = true)]
+        fixture: Option<String>,
+    },
+    /// Abre la ventana Tauri (catálogo si no pasas modelo)
+    Desktop {
+        modelo: Option<String>,
+        #[arg(long)]
+        demo: bool,
+        /// Chat en la terminal en vez de la ventana
+        #[arg(long)]
+        tui: bool,
+        #[arg(long, default_value = "auto")]
+        provider: String,
+        #[arg(long)]
+        offline: bool,
+        #[arg(long)]
+        refresh: bool,
         #[arg(long, hide = true)]
         fixture: Option<String>,
     },
@@ -137,9 +160,7 @@ enum Commands {
         action: ConfigCmd,
     },
     /// Completados para bash, zsh o fish
-    Completions {
-        shell: Shell,
-    },
+    Completions { shell: Shell },
 }
 
 #[derive(Subcommand)]
@@ -249,6 +270,7 @@ fn main() {
             dry_run,
             demo,
             no_chat,
+            tui,
             provider,
             offline,
             refresh,
@@ -267,7 +289,7 @@ fn main() {
                 }
             }
             if !no_chat {
-                if let Err(err) = run::open_prueba(&rec, demo, &provider) {
+                if let Err(err) = run::open_prueba(&rec, demo, &provider, tui) {
                     fail(err);
                 }
             }
@@ -275,12 +297,38 @@ fn main() {
         Some(Commands::Chat {
             modelo,
             demo,
+            tui,
             provider,
             offline,
             fixture,
         }) => {
             let rec = resolve_model(&modelo, offline, false, fixture.as_deref());
-            if let Err(err) = run::open_prueba(&rec, demo, &provider) {
+            if let Err(err) = run::open_prueba(&rec, demo, &provider, tui) {
+                fail(err);
+            }
+        }
+        Some(Commands::Desktop {
+            modelo,
+            demo,
+            tui,
+            provider,
+            offline,
+            refresh,
+            fixture,
+        }) => {
+            if let Some(modelo) = modelo {
+                let rec = resolve_model(&modelo, offline, refresh, fixture.as_deref());
+                if !demo {
+                    if let Err(err) = run::download_recommendation(&rec, false) {
+                        fail(err);
+                    }
+                }
+                if let Err(err) = run::open_prueba(&rec, demo, &provider, tui) {
+                    fail(err);
+                }
+            } else if tui {
+                fail("reco desktop --tui necesita un modelo (o usa reco ai / reco chat)");
+            } else if let Err(err) = run::open_desktop_picker(demo, &provider) {
                 fail(err);
             }
         }
@@ -384,11 +432,7 @@ fn cmd_api(action: ApiCmd) {
             lan,
             demo,
         } => {
-            let host = if lan {
-                Some("0.0.0.0".into())
-            } else {
-                host
-            };
+            let host = if lan { Some("0.0.0.0".into()) } else { host };
             api::start_named(nombre.as_deref(), host.as_deref(), port, demo)
         }
         ApiCmd::Rotate { nombre } => api::rotate(&nombre),
@@ -563,7 +607,7 @@ fn cmd_ai(
                 if let Err(err) = run::download_recommendation(&chosen, false) {
                     fail(err);
                 }
-                if let Err(err) = run::open_prueba(&chosen, false, "auto") {
+                if let Err(err) = run::open_prueba(&chosen, false, "auto", false) {
                     fail(err);
                 }
             }
