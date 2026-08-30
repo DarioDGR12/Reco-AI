@@ -1,6 +1,6 @@
 [package]
-name = "reco-cli"
-description = "Reco AI command-line interface"
+name = "reco-catalog"
+description = "Hugging Face GGUF catalog client and local cache for Reco AI"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,14 +9,10 @@ repository.workspace = true
 homepage.workspace = true
 authors.workspace = true
 
-[[bin]]
-name = "reco"
-path = "src/main.rs"
-
 [dependencies]
-clap.workspace = true
-owo-colors.workspace = true
-reco-catalog.workspace = true
+dirs.workspace = true
 reco-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
+ureq.workspace = true

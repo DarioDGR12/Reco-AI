@@ -31,10 +31,10 @@ CRUST = (17, 17, 27)
 OVERLAY = (69, 71, 90)
 YELLOW = (249, 226, 175)
 
-W, H = 980, 520
+W, H = 980, 640
 PAD = 22
 LINE_H = 22
-COLS = 72
+COLS = 86
 
 
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
@@ -85,7 +85,12 @@ def draw_colored(
 
 def capture(args: list[str]) -> str:
     binary = ROOT / "target" / "debug" / "reco"
-    env = {**__import__("os").environ, "NO_COLOR": "1"}
+    env = {
+        **__import__("os").environ,
+        "NO_COLOR": "1",
+        # Empty cache dir so --offline uses the bundled seed (stable GIF).
+        "RECO_CACHE_DIR": str(ROOT / "target" / "reco-gif-cache"),
+    }
     proc = subprocess.run(
         [str(binary), *args],
         cwd=ROOT,
@@ -153,13 +158,9 @@ def save_gif(path: Path, frames: list[Image.Image], duration: int = 70) -> None:
 
 
 def gif_reco_ai() -> None:
-    raw = capture(["ai"])
-    lines = [ln.replace("\x1b[0m", "").replace("\x1b[1m", "").replace("\x1b[2m", "") for ln in raw.splitlines()]
-    # strip remaining ANSI
-    cleaned = []
-    for line in lines:
-        cleaned.append(strip_ansi(line))
-    frames = frames_typing("reco ai", cleaned, 520)
+    raw = capture(["ai", "--offline", "--fixture", "rtx4060", "--limit", "5"])
+    cleaned = [strip_ansi(ln) for ln in raw.splitlines()]
+    frames = frames_typing("reco ai --offline --fixture rtx4060 --limit 5", cleaned, 640)
     save_gif(ASSETS / "demo-reco-ai.gif", frames, duration=65)
 
 

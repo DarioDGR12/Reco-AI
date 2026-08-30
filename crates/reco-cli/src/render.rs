@@ -1,24 +1,77 @@
 use owo_colors::OwoColorize;
-use reco_core::{format_gib, AccelBackend, HardwareProfile};
+use reco_core::{format_gib, AccelBackend, CatalogSource, HardwareProfile, Recommendation};
 
-pub fn print_ai(profile: &HardwareProfile, json: bool) {
-    if json {
-        print_json(profile);
-        return;
-    }
+pub fn print_ai(
+    profile: &HardwareProfile,
+    recs: &[Recommendation],
+    notes: &[String],
+    source: CatalogSource,
+    catalog_len: usize,
+) {
     print_profile_box(profile);
     println!();
-    println!("{}", "Recomendaciones".bold());
-    println!("  El catálogo de Hugging Face aún no está indexado.");
     println!(
-        "  Cuando lo esté, Reco ponderará 40% compatibilidad, 20% velocidad, 20% calidad y 20% popularidad."
+        "{}  {}  ·  {} repos",
+        "Recomendaciones".bold(),
+        "40% compat · 20% vel · 20% cal · 20% pop".dimmed(),
+        catalog_len
     );
-    println!("  Usa {} para el perfil crudo.", "reco hw --json".cyan());
+    println!(
+        "  fuente: {}",
+        match source {
+            CatalogSource::HuggingFace => "Hugging Face (en vivo)",
+            CatalogSource::Cache => "caché local",
+            CatalogSource::Seed => "semilla embebida",
+        }
+    );
+    println!();
+
+    if recs.is_empty() {
+        println!("  No hay GGUF que entren cómodos en este hardware.");
+        println!(
+            "  Prueba {} o un modelo más chico.",
+            "reco ai --refresh".cyan()
+        );
+    } else {
+        for (index, rec) in recs.iter().enumerate() {
+            println!("  {:>2}.  {}", index + 1, rec.repo_id.bold());
+            println!(
+                "      {}  ·  {}{}  ·  {}",
+                rec.quant.label().cyan(),
+                format_gib(rec.size_bytes),
+                if rec.size_estimated { " est." } else { "" },
+                rec.why.dimmed()
+            );
+            println!(
+                "      score {:>5.1}   compat {:>5.1}  vel {:>5.1}  cal {:>5.1}  pop {:>5.1}",
+                rec.total,
+                rec.scores.compatibility,
+                rec.scores.speed,
+                rec.scores.quality,
+                rec.scores.popularity
+            );
+            println!();
+        }
+        println!("  Siguiente: {} {}", "reco run".cyan(), recs[0].repo_id);
+    }
+
+    if !notes.is_empty() {
+        println!();
+        for note in notes {
+            println!("  {}", note.dimmed());
+        }
+    }
 }
 
 pub fn print_hw(profile: &HardwareProfile, json: bool) {
     if json {
-        print_json(profile);
+        match serde_json::to_string_pretty(profile) {
+            Ok(json) => println!("{json}"),
+            Err(err) => {
+                eprintln!("No se pudo serializar el perfil: {err}");
+                std::process::exit(1);
+            }
+        }
         return;
     }
     print_profile_box(profile);
@@ -32,16 +85,6 @@ pub fn print_stub(command: &str, modelo: &str, next: &str) {
     );
     println!("  Modelo pedido: {}", modelo.cyan());
     println!("  {next}");
-}
-
-fn print_json(profile: &HardwareProfile) {
-    match serde_json::to_string_pretty(profile) {
-        Ok(json) => println!("{json}"),
-        Err(err) => {
-            eprintln!("No se pudo serializar el perfil: {err}");
-            std::process::exit(1);
-        }
-    }
 }
 
 fn print_profile_box(profile: &HardwareProfile) {
