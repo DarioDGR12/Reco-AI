@@ -13,13 +13,12 @@
   <img alt="Windows" src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" />
   <img alt="macOS" src="https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white" />
   <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black" />
-  <img alt="Status" src="https://img.shields.io/badge/status-v0.1%20llama--cli%20%2B%20BYOK-89dceb?style=flat-square" />
+  <img alt="Status" src="https://img.shields.io/badge/version-0.2-89dceb?style=flat-square" />
 </p>
 
 <p align="center">
   <a href="#quickstart">Quickstart</a> ·
-  <a href="#what-works-today">What works today</a> ·
-  <a href="#roadmap">Roadmap</a> ·
+  <a href="#commands">Commands</a> ·
   <a href="#why-not-just-ollama">Why Reco</a>
 </p>
 
@@ -47,23 +46,21 @@ Raw hardware profile:
 
 ---
 
-## Coming soon
-
-These are product previews, not shipping UI yet.
+## Product
 
 <table>
   <tr>
     <td align="center" width="33%">
       <img src="docs/assets/preview-tui.gif" alt="TUI catalog" /><br />
-      <sub><b>TUI catalog</b> — Ratatui, flechas + <code>/</code> buscar · <i>listo</i></sub>
+      <sub><b>Catálogo</b> — Ratatui, flechas + <code>/</code> buscar + panel de scores</sub>
     </td>
     <td align="center" width="33%">
       <img src="docs/assets/preview-prueba.gif" alt="Prueba chat" /><br />
-      <sub><b>Prueba</b> — chat TUI + SQLite · Tauri window en <code>crates/reco-desktop</code></sub>
+      <sub><b>Prueba</b> — chat TUI o ventana Tauri, historial SQLite</sub>
     </td>
     <td align="center" width="33%">
       <img src="docs/assets/preview-serve.gif" alt="reco serve" /><br />
-      <sub><b>reco serve</b> — API local + <code>sk-reco-...</code> · llama-cli / BYOK / echo</sub>
+      <sub><b>reco serve</b> — API OpenAI-compat, CORS, <code>stream</code>, clave persistente</sub>
     </td>
   </tr>
 </table>
@@ -100,59 +97,53 @@ Reco is the missing middle: **HF’s catalog, Ollama’s “just run it”, plus
 
 ## Quickstart
 
-Requires a [Rust](https://rustup.rs/) toolchain (1.83+).
+Requires [Rust](https://rustup.rs/) 1.83+.
 
 ```bash
-git clone https://github.com/DarioDGR12/Reco-AI.git
-cd Reco-AI
-cargo install --path crates/reco-cli
+curl -sSf https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash
+# or
+cargo install --git https://github.com/DarioDGR12/Reco-AI --path crates/reco-cli
 ```
 
 ```bash
-reco ai                      # TUI: ↑↓, enter descarga, / busca
-reco ai --list               # same ranking, plain text
-reco ai --json
-reco run Llama-3.1-8B        # descarga GGUF + Prueba (llama-cli / BYOK / echo)
-reco run Llama-3.1-8B --demo # Prueba con EchoEngine
-reco run org/repo --dry-run
-reco chat Llama-3.1-8B --offline --fixture rtx4060
-reco serve Llama-3.1-8B --demo --offline --fixture rtx4060
+reco                         # estado de tu máquina y siguientes pasos
+reco doctor                  # llama.cpp, claves, caché
+reco ai                      # catálogo TUI · enter descarga · / busca
+reco run Qwen2.5-7B          # descarga + Prueba
+reco serve Llama-3.1-8B      # API local para Continue / Open WebUI
 reco config set openai-key sk-...
-reco config show
-reco hw --json
 ```
 
-Put `llama-cli` on `PATH` (or `reco config set llama-cli /ruta`) after installing [llama.cpp](https://github.com/ggml-org/llama.cpp). Keys can also come from `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`.
+Put `llama-cli` on `PATH` (or `reco config set llama-cli /ruta`) after installing [llama.cpp](https://github.com/ggml-org/llama.cpp). Cloud keys also read `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`.
 
-User-facing CLI text is in Spanish; crate names and this README are in English.
-
----
-
-## What works today
-
-- [x] Cargo workspace (`reco-core`, `reco-catalog`, `reco-cli`)
-- [x] `reco ai` / `reco hw` — CPU, RAM, OS, GPU/VRAM best-effort
-- [x] Hugging Face GGUF index + local cache + offline seed
-- [x] Weighted recommendations (40 / 20 / 20 / 20)
-- [x] Ratatui catalog (`reco ai`, `--list` to skip)
-- [x] `reco run` — resolve spec + download GGUF to the local cache
-- [x] **Prueba** TUI chat + SQLite history (`reco chat` to reopen)
-- [x] `reco serve` — `/v1/chat/completions` + `sk-reco-...`
-- [x] llama.cpp tokens via `llama-cli` (`InferEngine`, `--provider llama|auto`)
-- [x] Tauri desktop window for Prueba (`crates/reco-desktop`, optional)
-- [x] BYOK OpenAI / Anthropic (`reco config`, `--provider openai|anthropic`)
-- [x] AppImage / `.deb` / `.rpm` / AUR metadata (`packaging/`)
-
-GPU detection never requires the CUDA toolkit. NVIDIA uses NVML at runtime or `nvidia-smi`. No GPU → CPU backend, no crash.
+CLI copy is Spanish; crate names and this README are English.
 
 ---
 
-## Roadmap
+## Commands
 
-1. ~~Catalog, recommender, TUI, download, Prueba TUI, serve demo~~  
-2. ~~llama.cpp via `llama-cli`, BYOK, Tauri Prueba, Linux packaging recipes~~  
-3. In-process llama.cpp (optional feature), CUDA/Metal GPU offload tuning  
-4. Signed macOS / Windows installers  
+| | |
+| --- | --- |
+| `reco` | Home: hardware, motor, modelos en disco, chats recientes |
+| `reco ai` | Ranked catalog (TUI). `--list` / `--json` to skip the UI |
+| `reco run <modelo>` | Download the GGUF that fits, then open Prueba |
+| `reco chat <modelo>` | Reopen the last conversation |
+| `reco serve <modelo>` | OpenAI-compatible API on `127.0.0.1:11434` |
+| `reco models` | List (or `rm`) cached GGUFs |
+| `reco doctor` | llama-cli, BYOK, catalog cache |
+| `reco config` | `show` / `set` / `get` / `unset` |
+| `reco completions bash` | Shell completions (`zsh`, `fish`) |
+| `reco hw` | Hardware profile |
+
+`--provider auto|llama|openai|anthropic|echo` on run / chat / serve. Downloads resume if interrupted.
+
+GPU detection never needs the CUDA toolkit. NVIDIA uses NVML or `nvidia-smi`. No GPU → CPU, no crash.
+
+---
+
+## Next
+
+In-process llama.cpp, signed macOS / Windows installers. Linux packages: [packaging/README.md](packaging/README.md).
 
 ---
 

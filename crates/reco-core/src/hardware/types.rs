@@ -113,5 +113,9 @@ pub struct OsInfo {
 /// Format bytes as a short GiB string (e.g. `8.0 GiB`).
 pub fn format_gib(bytes: u64) -> String {
     const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
+    const MIB: f64 = 1024.0 * 1024.0;
+    if bytes > 0 && (bytes as f64) < GIB / 10.0 {
+        return format!("{:.1} MiB", bytes as f64 / MIB);
+    }
     format!("{:.1} GiB", bytes as f64 / GIB)
 }

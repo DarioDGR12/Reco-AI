@@ -36,14 +36,13 @@ pub fn download_recommendation(rec: &Recommendation, dry_run: bool) -> Result<Pa
         return Ok(dest);
     }
 
-    print!("  descargando…");
-    let _ = io::stdout().flush();
+    let started = std::time::Instant::now();
     let path = download_gguf(&rec.repo_id, &rec.filename, |written, total| {
         let _ = write!(
             io::stderr(),
-            "\r  descargando {} / {}   ",
-            format_gib(written),
-            total.map(format_gib).unwrap_or_else(|| "?".into())
+            "\r  {} {}  ",
+            "descargando".cyan(),
+            progress_bar(written, total, started.elapsed().as_secs_f64())
         );
         let _ = io::stderr().flush();
     })
@@ -116,4 +115,26 @@ fn try_launch_desktop(rec: &Recommendation, provider: &str) -> Result<bool, Stri
         }
     }
     Ok(false)
+}
+
+fn progress_bar(written: u64, total: Option<u64>, elapsed: f64) -> String {
+    let speed = if elapsed > 0.2 {
+        format!("  {}", format_gib((written as f64 / elapsed) as u64) + "/s")
+    } else {
+        String::new()
+    };
+    match total.filter(|n| *n > 0) {
+        Some(total) => {
+            let pct = (written as f64 / total as f64).clamp(0.0, 1.0);
+            let fill = (pct * 22.0).round() as usize;
+            let bar = format!("{}{}", "█".repeat(fill), "░".repeat(22 - fill));
+            format!(
+                "[{bar}] {:>5.1}%  {} / {}{speed}",
+                pct * 100.0,
+                format_gib(written),
+                format_gib(total)
+            )
+        }
+        None => format!("{}{speed}", format_gib(written)),
+    }
 }

@@ -8,7 +8,8 @@ mod seed;
 pub use cache::{cache_path, cache_root, load_cache, save_cache};
 pub use client::{fetch_huggingface, FetchOptions};
 pub use download::{
-    download_gguf, huggingface_resolve_url, is_downloaded, local_model_path, models_dir,
+    dir_size, download_gguf, huggingface_resolve_url, is_downloaded, list_downloaded,
+    local_model_path, models_dir, remove_downloaded, scan_models_dir, DownloadedModel,
 };
 pub use seed::seed_catalog;
 

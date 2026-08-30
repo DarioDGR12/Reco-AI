@@ -8,6 +8,14 @@ pub struct RecoConfig {
     pub byok: ByokConfig,
     #[serde(default)]
     pub llama: LlamaConfig,
+    #[serde(default)]
+    pub serve: ServeConfig,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ServeConfig {
+    #[serde(default)]
+    pub api_key: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -78,15 +86,29 @@ fn default_n_gpu_layers() -> i32 {
     99
 }
 
+pub const CONFIG_KEYS: &[&str] = &[
+    "openai-key",
+    "openai-base",
+    "openai-model",
+    "anthropic-key",
+    "anthropic-model",
+    "llama-cli",
+    "n-predict",
+    "n-ctx",
+    "n-gpu-layers",
+];
+
 impl RecoConfig {
-    pub fn load() -> Self {
+    pub fn load_file() -> Self {
         let path = config_path();
         let Ok(raw) = std::fs::read_to_string(&path) else {
-            return Self::default().with_env();
+            return Self::default();
         };
-        serde_json::from_str::<Self>(&raw)
-            .unwrap_or_default()
-            .with_env()
+        serde_json::from_str::<Self>(&raw).unwrap_or_default()
+    }
+
+    pub fn load() -> Self {
+        Self::load_file().with_env()
     }
 
     pub fn save(&self) -> Result<(), String> {
@@ -139,20 +161,62 @@ impl RecoConfig {
                     .parse()
                     .map_err(|_| "n-gpu-layers debe ser un número")?;
             }
-            other => return Err(format!("clave desconocida: {other}")),
+            other => {
+                return Err(format!(
+                    "clave desconocida: {other}. Usa: {}",
+                    CONFIG_KEYS.join(", ")
+                ))
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get(&self, key: &str) -> Result<String, String> {
+        let value = match key {
+            "openai-key" | "openai_key" => mask_secret(&self.byok.openai_key),
+            "openai-base" | "openai_base" => self.byok.openai_base.clone(),
+            "openai-model" | "openai_model" => self.byok.openai_model.clone(),
+            "anthropic-key" | "anthropic_key" => mask_secret(&self.byok.anthropic_key),
+            "anthropic-model" | "anthropic_model" => self.byok.anthropic_model.clone(),
+            "llama-cli" | "llama_cli" => self.llama.cli.clone().unwrap_or_default(),
+            "n-predict" | "n_predict" => self.llama.n_predict.to_string(),
+            "n-ctx" | "n_ctx" => self.llama.n_ctx.to_string(),
+            "n-gpu-layers" | "n_gpu_layers" => self.llama.n_gpu_layers.to_string(),
+            other => {
+                return Err(format!(
+                    "clave desconocida: {other}. Usa: {}",
+                    CONFIG_KEYS.join(", ")
+                ))
+            }
+        };
+        Ok(value)
+    }
+
+    pub fn unset(&mut self, key: &str) -> Result<(), String> {
+        match key {
+            "openai-key" | "openai_key" => self.byok.openai_key.clear(),
+            "anthropic-key" | "anthropic_key" => self.byok.anthropic_key.clear(),
+            "llama-cli" | "llama_cli" => self.llama.cli = None,
+            "openai-base" | "openai_base" => self.byok.openai_base = default_openai_base(),
+            "openai-model" | "openai_model" => self.byok.openai_model = default_openai_model(),
+            "anthropic-model" | "anthropic_model" => {
+                self.byok.anthropic_model = default_anthropic_model();
+            }
+            other => return Err(format!("no se puede borrar: {other}")),
         }
         Ok(())
     }
 
     pub fn masked(&self) -> Self {
         let mut copy = self.clone();
-        copy.byok.openai_key = mask(&self.byok.openai_key);
-        copy.byok.anthropic_key = mask(&self.byok.anthropic_key);
+        copy.byok.openai_key = mask_secret(&self.byok.openai_key);
+        copy.byok.anthropic_key = mask_secret(&self.byok.anthropic_key);
+        copy.serve.api_key = mask_secret(&self.serve.api_key);
         copy
     }
 }
 
-fn mask(key: &str) -> String {
+pub fn mask_secret(key: &str) -> String {
     if key.is_empty() {
         return String::new();
     }
@@ -174,5 +238,8 @@ mod tests {
         assert!(masked.byok.openai_key.starts_with("sk-a"));
         assert!(!masked.byok.openai_key.contains("mnop"));
         assert!(cfg.set("nope", "x").is_err());
+        cfg.unset("openai-key").unwrap();
+        assert!(cfg.byok.openai_key.is_empty());
+        assert_eq!(cfg.get("openai-model").unwrap(), "gpt-4o-mini");
     }
 }

@@ -119,6 +119,74 @@ impl ChatStore {
         Ok(out)
     }
 
+    pub fn list_recent(&self, limit: usize) -> Result<Vec<Conversation>, StoreError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, repo_id, filename, title, created_at, updated_at
+             FROM conversations
+             ORDER BY updated_at DESC LIMIT ?1",
+        )?;
+        let mut rows = stmt.query(params![limit as i64])?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next()? {
+            out.push(read_conversation(row)?);
+        }
+        Ok(out)
+    }
+
+    pub fn new_conversation(
+        &self,
+        repo_id: &str,
+        filename: &str,
+    ) -> Result<Conversation, StoreError> {
+        let now = now_secs();
+        let stamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(now as u128);
+        let id = format!(
+            "cnv-{stamp:x}-{}",
+            repo_id
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .take(8)
+                .collect::<String>()
+        );
+        let title = repo_id.rsplit('/').next().unwrap_or(repo_id).to_string();
+        self.conn.execute(
+            "INSERT INTO conversations (id, repo_id, filename, title, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+            params![id, repo_id, filename, title, now],
+        )?;
+        Ok(Conversation {
+            id,
+            repo_id: repo_id.into(),
+            filename: filename.into(),
+            title,
+            created_at: now,
+            updated_at: now,
+        })
+    }
+
+    pub fn delete_conversation(&self, conversation_id: &str) -> Result<(), StoreError> {
+        self.conn.execute(
+            "DELETE FROM messages WHERE conversation_id = ?1",
+            params![conversation_id],
+        )?;
+        self.conn.execute(
+            "DELETE FROM conversations WHERE id = ?1",
+            params![conversation_id],
+        )?;
+        Ok(())
+    }
+
+    pub fn clear_messages(&self, conversation_id: &str) -> Result<(), StoreError> {
+        self.conn.execute(
+            "DELETE FROM messages WHERE conversation_id = ?1",
+            params![conversation_id],
+        )?;
+        Ok(())
+    }
+
     pub fn append(
         &self,
         conversation_id: &str,
@@ -183,6 +251,13 @@ mod tests {
         assert_eq!(msgs.len(), 2);
         assert_eq!(msgs[0].content, "hola");
         assert_eq!(msgs[1].role, ChatRole::Assistant);
+        let second = store
+            .new_conversation("Qwen/Qwen2.5-7B-Instruct-GGUF", "q4.gguf")
+            .unwrap();
+        assert_ne!(second.id, conv.id);
+        assert_eq!(store.list_recent(10).unwrap().len(), 2);
+        store.delete_conversation(&second.id).unwrap();
+        assert_eq!(store.list_recent(10).unwrap().len(), 1);
         let _ = std::fs::remove_dir_all(dir);
     }
 }
