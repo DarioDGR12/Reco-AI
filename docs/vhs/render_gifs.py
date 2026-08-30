@@ -158,9 +158,11 @@ def save_gif(path: Path, frames: list[Image.Image], duration: int = 70) -> None:
 
 
 def gif_reco_ai() -> None:
-    raw = capture(["ai", "--offline", "--fixture", "rtx4060", "--limit", "5"])
+    raw = capture(["ai", "--offline", "--fixture", "rtx4060", "--limit", "5", "--list"])
     cleaned = [strip_ansi(ln) for ln in raw.splitlines()]
-    frames = frames_typing("reco ai --offline --fixture rtx4060 --limit 5", cleaned, 640)
+    frames = frames_typing(
+        "reco ai --offline --fixture rtx4060 --limit 5 --list", cleaned, 640
+    )
     save_gif(ASSETS / "demo-reco-ai.gif", frames, duration=65)
 
 
@@ -187,6 +189,27 @@ def strip_ansi(text: str) -> str:
     return "".join(out)
 
 
+def gif_reco_run() -> None:
+    raw = strip_ansi(
+        capture(
+            [
+                "run",
+                "Llama-3.1-8B",
+                "--offline",
+                "--fixture",
+                "rtx4060",
+                "--dry-run",
+            ]
+        )
+    )
+    frames = frames_typing(
+        "reco run Llama-3.1-8B --offline --fixture rtx4060 --dry-run",
+        raw.splitlines(),
+        420,
+    )
+    save_gif(ASSETS / "demo-reco-run.gif", frames, duration=60)
+
+
 def gif_tui_preview() -> None:
     frames = []
     models = [
@@ -204,7 +227,7 @@ def gif_tui_preview() -> None:
         y = 50
         draw.text((PAD + 8, y), "Reco AI  ·  recomendaciones para RTX 4060 8 GB", font=font(15, True), fill=MAUVE)
         y += 28
-        draw.text((PAD + 8, y), "↑↓ navegar   enter abrir Prueba   / buscar", font=small, fill=DIM)
+        draw.text((PAD + 8, y), "↑↓ navegar   enter descargar   / buscar   q salir", font=small, fill=DIM)
         y += 30
         for i, (title, meta) in enumerate(models):
             selected = i == highlight
@@ -214,7 +237,7 @@ def gif_tui_preview() -> None:
             color = PEACH if selected else FG
             draw.text((PAD + 14, box_y), title if not selected else title.replace("   ", "›  ", 1), font=fnt, fill=color)
             draw.text((PAD + 36, box_y + 20), meta, font=small, fill=CYAN if selected else DIM)
-        draw.text((PAD + 8, 380), "preview · TUI Ratatui · próximamente", font=small, fill=YELLOW)
+        draw.text((PAD + 8, 380), "reco ai  ·  TUI Ratatui", font=small, fill=YELLOW)
         frames.extend([img] * 10)
     save_gif(ASSETS / "preview-tui.gif", frames, duration=180)
 
@@ -334,6 +357,7 @@ def main() -> int:
     banner()
     gif_reco_ai()
     gif_reco_hw()
+    gif_reco_run()
     gif_tui_preview()
     gif_prueba_preview()
     gif_serve_preview()

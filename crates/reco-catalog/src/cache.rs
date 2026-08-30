@@ -6,14 +6,17 @@ use reco_core::{Catalog, CatalogSource};
 
 use crate::CatalogError;
 
-pub fn cache_path() -> PathBuf {
+pub fn cache_root() -> PathBuf {
     if let Some(custom) = std::env::var_os("RECO_CACHE_DIR") {
-        return PathBuf::from(custom).join("catalog-v1.json");
+        return PathBuf::from(custom);
     }
     dirs::cache_dir()
         .unwrap_or_else(|| PathBuf::from("."))
         .join("reco")
-        .join("catalog-v1.json")
+}
+
+pub fn cache_path() -> PathBuf {
+    cache_root().join("catalog-v1.json")
 }
 
 pub fn load_cache() -> Option<Catalog> {

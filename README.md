@@ -13,7 +13,7 @@
   <img alt="Windows" src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" />
   <img alt="macOS" src="https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white" />
   <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black" />
-  <img alt="Status" src="https://img.shields.io/badge/status-v0.1%20catalog%20%2B%20recs-89dceb?style=flat-square" />
+  <img alt="Status" src="https://img.shields.io/badge/status-v0.1%20TUI%20%2B%20download-89dceb?style=flat-square" />
 </p>
 
 <p align="center">
@@ -27,13 +27,19 @@
 
 ## Demo
 
-`reco ai` reads your CPU, RAM, and GPU, indexes GGUF repos from Hugging Face, and ranks a quant that actually fits (40% compatibility, 20% speed, 20% quality, 20% popularity).
+`reco ai` reads your hardware, indexes GGUF repos from Hugging Face, ranks a quant that fits (40/20/20/20), and opens a Ratatui catalog. Enter downloads the file with `reco run`.
 
 <p align="center">
   <img src="docs/assets/demo-reco-ai.gif" alt="reco ai detecting hardware" width="820" />
 </p>
 
-Raw profile for scripts and later scoring:
+`reco run` resolves the repo, picks the quant that fits, and shows the Hugging Face URL (add `--dry-run` to skip the download):
+
+<p align="center">
+  <img src="docs/assets/demo-reco-run.gif" alt="reco run dry-run" width="820" />
+</p>
+
+Raw hardware profile:
 
 <p align="center">
   <img src="docs/assets/demo-reco-hw.gif" alt="reco hw --json" width="820" />
@@ -48,8 +54,8 @@ These are product previews, not shipping UI yet.
 <table>
   <tr>
     <td align="center" width="33%">
-      <img src="docs/assets/preview-tui.gif" alt="TUI catalog preview" /><br />
-      <sub><b>TUI catalog</b> — Ratatui, arrows or click · <i>próximamente</i></sub>
+      <img src="docs/assets/preview-tui.gif" alt="TUI catalog" /><br />
+      <sub><b>TUI catalog</b> — Ratatui, flechas + <code>/</code> buscar · <i>listo</i></sub>
     </td>
     <td align="center" width="33%">
       <img src="docs/assets/preview-prueba.gif" alt="Prueba chat preview" /><br />
@@ -70,7 +76,7 @@ These are product previews, not shipping UI yet.
 | --- | --- |
 | **Hardware-aware picks** | CPU, RAM, NVIDIA (NVML / `nvidia-smi`), Linux DRM, Apple Metal. Score: 40% fit, 20% speed, 20% quality, 20% popularity. |
 | **GGUF catalog** | Live Hugging Face index (`filter=gguf`), 12h cache, offline seed. |
-| **One command** | `reco run <model>` downloads the right quant and opens **Prueba**. *Next.* |
+| **One command** | `reco run <model>` picks the quant and downloads the GGUF. **Prueba** (Tauri chat) is next. |
 | **Prueba** | Native desktop chat (Tauri, not Electron). History in SQLite. *Next.* |
 | **BYOK** | Your OpenAI / Anthropic / … keys next to local GGUF. *Next.* |
 | **`reco serve`** | Turn this PC into a local OpenAI-style server with a generated `sk-...` key. *Next.* |
@@ -102,13 +108,13 @@ cargo install --path crates/reco-cli
 ```
 
 ```bash
-reco ai                 # detect hardware + rank GGUF that fit
-reco ai --json          # same, machine-readable
-reco ai --refresh       # ignore cache, fetch Hugging Face again
-reco ai --offline       # cache or bundled seed, no network
-reco hw --json          # hardware profile only
-reco run <modelo>       # download + open Prueba          (not yet)
-reco serve <modelo>     # local server + API key          (not yet)
+reco ai                      # TUI: ↑↓, enter descarga, / busca
+reco ai --list               # same ranking, plain text
+reco ai --json
+reco run Llama-3.1-8B        # resolve + download the fitting quant
+reco run org/repo --dry-run  # URL + destination only
+reco hw --json
+reco serve <modelo>          # local server + API key     (not yet)
 ```
 
 User-facing CLI text is in Spanish; crate names and this README are in English.
@@ -121,8 +127,9 @@ User-facing CLI text is in Spanish; crate names and this README are in English.
 - [x] `reco ai` / `reco hw` — CPU, RAM, OS, GPU/VRAM best-effort
 - [x] Hugging Face GGUF index + local cache + offline seed
 - [x] Weighted recommendations (40 / 20 / 20 / 20)
-- [ ] Ratatui catalog
-- [ ] `reco run` + llama.cpp + Prueba
+- [x] Ratatui catalog (`reco ai`, `--list` to skip)
+- [x] `reco run` — resolve spec + download GGUF to the local cache
+- [ ] llama.cpp + Tauri **Prueba**
 - [ ] Chat history (SQLite)
 - [ ] BYOK
 - [ ] `reco serve`
@@ -134,10 +141,9 @@ GPU detection never requires the CUDA toolkit. NVIDIA uses NVML at runtime or `n
 
 ## Roadmap
 
-1. ~~Catalog~~ and ~~recommender~~ — in this tree  
-2. **TUI** — Ratatui inside `reco-cli`  
-3. **`reco run`** — download, pick quant, llama.cpp, launch Prueba  
-4. **`reco serve`** — local HTTP API + `sk-...`  
+1. ~~Catalog, recommender, TUI, GGUF download~~  
+2. **`reco run` + Prueba** — llama.cpp inference and the Tauri chat window  
+3. **`reco serve`** — local HTTP API + `sk-...`  
 
 ---
 
@@ -146,7 +152,7 @@ GPU detection never requires the CUDA toolkit. NVIDIA uses NVML at runtime or `n
 ```
 crates/reco-core      hardware, GGUF types, scoring
 crates/reco-catalog   Hugging Face client + cache + seed
-crates/reco-cli       `reco` binary (clap; Ratatui later)
+crates/reco-cli       `reco` binary (clap + Ratatui)
 
 later:
 crates/reco-desktop   Tauri app “Prueba”

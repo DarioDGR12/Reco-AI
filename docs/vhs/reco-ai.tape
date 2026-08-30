@@ -13,7 +13,7 @@ Set TypingSpeed 55ms
 Set PlaybackSpeed 0.9
 
 Sleep 400ms
-Type "reco ai --offline --fixture rtx4060 --limit 5"
+Type "reco ai --offline --fixture rtx4060 --limit 5 --list"
 Sleep 250ms
 Enter
 Sleep 3s

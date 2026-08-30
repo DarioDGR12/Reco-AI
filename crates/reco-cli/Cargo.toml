@@ -15,7 +15,9 @@ path = "src/main.rs"
 
 [dependencies]
 clap.workspace = true
+crossterm.workspace = true
 owo-colors.workspace = true
+ratatui.workspace = true
 reco-catalog.workspace = true
 reco-core.workspace = true
 serde.workspace = true
