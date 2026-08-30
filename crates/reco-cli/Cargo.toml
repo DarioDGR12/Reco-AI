@@ -24,3 +24,23 @@ getrandom.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tiny_http.workspace = true
+
+[package.metadata.deb]
+name = "reco"
+maintainer = "Reco AI contributors <reco@localhost>"
+copyright = "2026 Reco AI contributors"
+license-file = ["../../LICENSE", "0"]
+extended-description = "Pick and run local GGUF models that fit your hardware."
+section = "utils"
+priority = "optional"
+assets = [
+    ["../../target/release/reco", "usr/bin/", "755"],
+    ["../../README.md", "usr/share/doc/reco/README", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "reco"
+license = "MIT"
+assets = [
+    { source = "../../target/release/reco", dest = "/usr/bin/reco", mode = "755" },
+]

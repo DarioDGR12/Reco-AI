@@ -1,7 +1,7 @@
 use std::io::Cursor;
 
 use reco_core::chat::{ChatMessage, ChatRole};
-use reco_core::infer::{EchoEngine, InferEngine};
+use reco_core::infer::{InferEngine, PickedEngine};
 use reco_core::Recommendation;
 use serde::{Deserialize, Serialize};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -51,18 +51,23 @@ struct ModelCard {
     object: &'static str,
 }
 
-pub fn run(rec: &Recommendation, port: u16, host: &str, demo: bool) -> Result<(), String> {
+pub fn run(
+    rec: &Recommendation,
+    port: u16,
+    host: &str,
+    mut picked: PickedEngine,
+) -> Result<(), String> {
     let key = new_api_key();
     let addr = format!("{host}:{port}");
     let server = Server::http(&addr).map_err(|err| err.to_string())?;
-    let mut engine: Box<dyn InferEngine> = Box::new(EchoEngine::new(rec.repo_id.clone()));
 
     println!("Servidor local en http://{addr}");
     println!("Modelo     {}", rec.repo_id);
     println!("Cuantiz.   {}", rec.quant.label());
+    println!("Motor      {}", picked.label);
     println!("API key    {key}");
-    if demo {
-        println!("Modo       demo (EchoEngine, sin llama.cpp)");
+    if let Some(hint) = &picked.hint {
+        println!("Nota       {hint}");
     }
     println!();
     println!("curl http://{addr}/v1/chat/completions \\");
@@ -73,7 +78,7 @@ pub fn run(rec: &Recommendation, port: u16, host: &str, demo: bool) -> Result<()
     println!("Ctrl+C para parar.");
 
     for request in server.incoming_requests() {
-        if let Err(err) = handle(request, rec, &key, &mut *engine) {
+        if let Err(err) = handle(request, rec, &key, &mut *picked.engine) {
             eprintln!("serve: {err}");
         }
     }

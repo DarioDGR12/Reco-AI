@@ -1,5 +1,7 @@
 use reco_core::chat::{ChatMessage, ChatRole};
-use reco_core::infer::{EchoEngine, InferEngine};
+use reco_core::infer::{InferEngine, PickedEngine};
+#[cfg(test)]
+use reco_core::infer::EchoEngine;
 use reco_core::store::ChatStore;
 use reco_core::Recommendation;
 
@@ -7,6 +9,7 @@ pub struct PruebaSession {
     pub conversation_id: String,
     pub repo_id: String,
     pub filename: String,
+    pub engine_label: String,
     pub messages: Vec<ChatMessage>,
     pub input: String,
     pub status: String,
@@ -17,14 +20,15 @@ impl PruebaSession {
     pub fn open(
         store: &ChatStore,
         rec: &Recommendation,
-        mut engine: Box<dyn InferEngine>,
+        mut picked: PickedEngine,
     ) -> Result<Self, String> {
         let conv = store
             .open_or_create(&rec.repo_id, &rec.filename)
             .map_err(|err| err.to_string())?;
         let messages = store.messages(&conv.id).map_err(|err| err.to_string())?;
         if messages.is_empty() {
-            let welcome = engine
+            let welcome = picked
+                .engine
                 .generate(&[])
                 .unwrap_or_else(|_| "Prueba lista.".into());
             store
@@ -36,15 +40,25 @@ impl PruebaSession {
             conversation_id: conv.id,
             repo_id: rec.repo_id.clone(),
             filename: rec.filename.clone(),
+            engine_label: picked.label,
             messages,
             input: String::new(),
             status: "enter enviar  ·  esc salir".into(),
-            engine,
+            engine: picked.engine,
         })
     }
 
+    #[cfg(test)]
     pub fn echo(store: &ChatStore, rec: &Recommendation) -> Result<Self, String> {
-        Self::open(store, rec, Box::new(EchoEngine::new(rec.repo_id.clone())))
+        Self::open(
+            store,
+            rec,
+            PickedEngine {
+                engine: Box::new(EchoEngine::new(rec.repo_id.clone())),
+                label: "echo".into(),
+                hint: None,
+            },
+        )
     }
 
     pub fn type_char(&mut self, ch: char) {

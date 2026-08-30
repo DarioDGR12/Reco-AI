@@ -1,7 +1,10 @@
 /target
+/dist
 **/*.rs.bk
 .idea/
 .vscode/
 *.swp
 *.swo
 .DS_Store
+node_modules/
+crates/reco-desktop/src-tauri/target

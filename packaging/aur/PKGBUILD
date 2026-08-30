@@ -1,0 +1,31 @@
+# Maintainer: Reco AI contributors
+pkgname=reco-ai
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Pick and run local GGUF models that fit your hardware"
+arch=('x86_64' 'aarch64')
+url="https://github.com/DarioDGR12/Reco-AI"
+license=('MIT')
+depends=('gcc-libs')
+makedepends=('cargo')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/DarioDGR12/Reco-AI/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "Reco-AI-${pkgver}"
+  export CARGO_HOME="${srcdir}/cargo-home"
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')" || cargo fetch
+}
+
+build() {
+  cd "Reco-AI-${pkgver}"
+  export CARGO_HOME="${srcdir}/cargo-home"
+  cargo build --release --frozen -p reco-cli || cargo build --release -p reco-cli
+}
+
+package() {
+  cd "Reco-AI-${pkgver}"
+  install -Dm755 target/release/reco "${pkgdir}/usr/bin/reco"
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+}

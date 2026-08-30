@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Reco AI
+Comment=Pick and run local GGUF models that fit your hardware
+Exec=reco
+Icon=reco
+Categories=Utility;Development;
+Terminal=true

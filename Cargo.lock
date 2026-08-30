@@ -931,11 +931,13 @@ dependencies = [
 name = "reco-core"
 version = "0.1.0"
 dependencies = [
+ "dirs",
  "nvml-wrapper",
  "rusqlite",
  "serde",
  "serde_json",
  "sysinfo",
+ "ureq",
 ]
 
 [[package]]
