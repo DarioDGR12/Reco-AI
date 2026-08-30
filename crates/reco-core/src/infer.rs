@@ -44,7 +44,7 @@ impl InferEngine for EchoEngine {
             ));
         }
         Ok(format!(
-            "[{}] (demo, sin llama.cpp) Recibí: «{last}».\nCuando tengas llama-cli o una clave BYOK, esta respuesta será del modelo.",
+            "Reco AI · modo demo · {}\nRecibí: «{last}».\nPara hablar de verdad: instala llama.cpp (llama-cli en PATH) o `reco config set openai-key`.",
             self.model_label
         ))
     }

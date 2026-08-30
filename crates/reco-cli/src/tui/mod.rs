@@ -15,6 +15,8 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use ratatui::Terminal;
+use std::collections::HashSet;
+
 use reco_core::{format_gib, CatalogSource, HardwareProfile, Recommendation};
 
 const MAUVE: Color = Color::Rgb(203, 166, 247);
@@ -28,6 +30,7 @@ pub fn run(
     profile: &HardwareProfile,
     recs: Vec<Recommendation>,
     source: CatalogSource,
+    downloaded: HashSet<String>,
 ) -> io::Result<Option<Recommendation>> {
     if recs.is_empty() {
         return Ok(None);
@@ -40,7 +43,7 @@ pub fn run(
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    let mut state = AiTui::new(recs);
+    let mut state = AiTui::new(recs, downloaded);
     let result = loop {
         terminal.draw(|frame| draw(frame, profile, &state, source))?;
         let Event::Key(key) = event::read()? else {
@@ -77,6 +80,18 @@ pub fn run(
                 state.backspace();
                 TuiAction::None
             }
+            KeyCode::PageUp => {
+                for _ in 0..8 {
+                    state.up();
+                }
+                TuiAction::None
+            }
+            KeyCode::PageDown => {
+                for _ in 0..8 {
+                    state.down();
+                }
+                TuiAction::None
+            }
             KeyCode::Char(ch) => state.handle_char(ch),
             _ => TuiAction::None,
         };
@@ -103,10 +118,14 @@ fn draw(
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3),
-            Constraint::Min(6),
+            Constraint::Min(8),
             Constraint::Length(3),
         ])
         .split(frame.area());
+    let body = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(62), Constraint::Percentage(38)])
+        .split(chunks[1]);
 
     let gpu = profile
         .gpus
@@ -126,7 +145,7 @@ fn draw(
             Span::styled(gpu, Style::default().fg(CYAN)),
         ]),
         Line::from(Span::styled(
-            " ↑↓ navegar   enter descargar   / buscar   q salir",
+            " ↑↓  enter abrir   / buscar   d en disco   ? ayuda   q salir",
             Style::default().fg(DIM),
         )),
     ])
@@ -142,9 +161,10 @@ fn draw(
         .map(|(pos, rec)| {
             let selected = pos == state.selected_index();
             let marker = if selected { "›" } else { " " };
+            let flag = if state.is_downloaded(rec) { "↓" } else { " " };
             let title = format!(
-                "{marker} {:<42}  {:<8}  {:>7}  {:>5.1}",
-                truncate(&rec.repo_id, 42),
+                "{marker}{flag} {:<40}  {:<8}  {:>7}  {:>5.1}",
+                truncate(&rec.repo_id, 40),
                 rec.quant.label(),
                 format_gib(rec.size_bytes),
                 rec.total
@@ -168,7 +188,30 @@ fn draw(
         .collect();
 
     let list = List::new(items).block(Block::default().borders(Borders::NONE));
-    frame.render_widget(list, chunks[1]);
+    frame.render_widget(list, body[0]);
+    frame.render_widget(detail_panel(state), body[1]);
+    if state.show_help {
+        let help = Paragraph::new(vec![
+            Line::from(Span::styled(
+                " Atajos",
+                Style::default().fg(MAUVE).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(" ↑↓ j k    moverse"),
+            Line::from(" enter     descargar y abrir Prueba"),
+            Line::from(" /         buscar repo, archivo o quant"),
+            Line::from(" d         solo modelos ya en disco"),
+            Line::from(" ?         esta ayuda"),
+            Line::from(" q  esc    salir"),
+        ])
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" ayuda ")
+                .border_style(Style::default().fg(MAUVE)),
+        );
+        let area = centered(frame.area(), 48, 11);
+        frame.render_widget(help, area);
+    }
 
     let source_label = match source {
         CatalogSource::HuggingFace => "Hugging Face",
@@ -198,6 +241,61 @@ fn draw(
             .border_style(Style::default().fg(DIM)),
     );
     frame.render_widget(footer, chunks[2]);
+}
+
+fn detail_panel(state: &AiTui) -> Paragraph<'static> {
+    let Some(rec) = state.current() else {
+        return Paragraph::new("Ningún modelo.").style(Style::default().fg(DIM));
+    };
+    let local = if state.is_downloaded(rec) {
+        "sí, en caché"
+    } else {
+        "no · enter descarga"
+    };
+    let params = rec
+        .params
+        .map(|p| format!("{:.0}B", p.total_billions))
+        .unwrap_or_else(|| "—".into());
+    Paragraph::new(vec![
+        Line::from(Span::styled(
+            rec.repo_id.clone(),
+            Style::default().fg(PEACH).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(Span::styled(rec.filename.clone(), Style::default().fg(DIM))),
+        Line::from(""),
+        Line::from(format!(
+            "{}  ·  {}{}  ·  {params}",
+            rec.quant.label(),
+            format_gib(rec.size_bytes),
+            if rec.size_estimated { " est." } else { "" }
+        )),
+        Line::from(Span::styled(format!("disco  {local}"), Style::default().fg(CYAN))),
+        Line::from(""),
+        Line::from(format!("score   {:>5.1}", rec.total)),
+        Line::from(format!("compat  {:>5.1}", rec.scores.compatibility)),
+        Line::from(format!("veloc.  {:>5.1}", rec.scores.speed)),
+        Line::from(format!("calidad {:>5.1}", rec.scores.quality)),
+        Line::from(format!("popular {:>5.1}", rec.scores.popularity)),
+        Line::from(""),
+        Line::from(Span::styled(rec.why.clone(), Style::default().fg(DIM))),
+    ])
+    .block(
+        Block::default()
+            .borders(Borders::LEFT)
+            .border_style(Style::default().fg(DIM)),
+    )
+    .wrap(ratatui::widgets::Wrap { trim: true })
+}
+
+fn centered(area: ratatui::layout::Rect, width: u16, height: u16) -> ratatui::layout::Rect {
+    let x = area.x + area.width.saturating_sub(width) / 2;
+    let y = area.y + area.height.saturating_sub(height) / 2;
+    ratatui::layout::Rect {
+        x,
+        y,
+        width: width.min(area.width),
+        height: height.min(area.height),
+    }
 }
 
 fn truncate(text: &str, max: usize) -> String {

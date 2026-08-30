@@ -96,6 +96,38 @@ fn find_repos(catalog: &Catalog, query: &str) -> Vec<String> {
         .collect()
 }
 
+/// Closest repo ids for a failed lookup (substring / token overlap).
+pub fn suggest_repos(catalog: &Catalog, query: &str, n: usize) -> Vec<String> {
+    let q = query.to_ascii_lowercase();
+    let tokens: Vec<&str> = q
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|t| t.len() >= 2)
+        .collect();
+    let mut scored: Vec<(u32, String)> = catalog
+        .models
+        .iter()
+        .filter_map(|m| {
+            let id = m.repo_id.to_ascii_lowercase();
+            let mut score = 0_u32;
+            if !q.is_empty() && id.contains(&q) {
+                score += 100;
+            }
+            for token in &tokens {
+                if id.contains(token) {
+                    score += 10;
+                }
+            }
+            if score == 0 {
+                return None;
+            }
+            Some((score, m.repo_id.clone()))
+        })
+        .collect();
+    scored.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    scored.dedup_by(|a, b| a.1 == b.1);
+    scored.into_iter().map(|(_, id)| id).take(n).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -173,5 +205,7 @@ mod tests {
             resolve_spec(&profile, &cat, "no-such-model"),
             Err(ResolveError::NotFound(_))
         ));
+        let hints = suggest_repos(&cat, "qwen", 3);
+        assert!(hints.iter().any(|id| id.contains("Qwen")));
     }
 }

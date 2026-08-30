@@ -27,7 +27,7 @@ struct AppState {
     repo_id: String,
     filename: String,
     engine_label: String,
-    conversation_id: String,
+    conversation_id: Mutex<String>,
     engine: Mutex<Box<dyn InferEngine>>,
 }
 
@@ -42,6 +42,13 @@ struct SessionInfo {
 struct HistoryMessage {
     role: String,
     content: String,
+}
+
+#[derive(Serialize)]
+struct ConvoCard {
+    id: String,
+    title: String,
+    active: bool,
 }
 
 fn store() -> Result<ChatStore, String> {
@@ -76,9 +83,12 @@ fn session_info(state: tauri::State<AppState>) -> SessionInfo {
 #[tauri::command]
 fn load_history(state: tauri::State<AppState>) -> Result<Vec<HistoryMessage>, String> {
     let store = store()?;
-    let msgs = store
-        .messages(&state.conversation_id)
-        .map_err(|err| err.to_string())?;
+    let id = state
+        .conversation_id
+        .lock()
+        .map_err(|_| "lock".to_string())?
+        .clone();
+    let msgs = store.messages(&id).map_err(|err| err.to_string())?;
     Ok(msgs
         .into_iter()
         .map(|m| HistoryMessage {
@@ -89,24 +99,79 @@ fn load_history(state: tauri::State<AppState>) -> Result<Vec<HistoryMessage>, St
 }
 
 #[tauri::command]
+fn list_conversations(state: tauri::State<AppState>) -> Result<Vec<ConvoCard>, String> {
+    let store = store()?;
+    let active = state
+        .conversation_id
+        .lock()
+        .map_err(|_| "lock".to_string())?
+        .clone();
+    Ok(store
+        .list_recent(24)
+        .map_err(|err| err.to_string())?
+        .into_iter()
+        .filter(|c| c.repo_id == state.repo_id && c.filename == state.filename)
+        .map(|c| ConvoCard {
+            active: c.id == active,
+            id: c.id,
+            title: c.title,
+        })
+        .collect())
+}
+
+#[tauri::command]
+fn open_conversation(state: tauri::State<AppState>, id: String) -> Result<(), String> {
+    *state
+        .conversation_id
+        .lock()
+        .map_err(|_| "lock".to_string())? = id;
+    Ok(())
+}
+
+#[tauri::command]
+fn new_conversation(state: tauri::State<AppState>) -> Result<(), String> {
+    let store = store()?;
+    let conv = store
+        .new_conversation(&state.repo_id, &state.filename)
+        .map_err(|err| err.to_string())?;
+    let welcome = {
+        let mut engine = state.engine.lock().map_err(|_| "engine lock".to_string())?;
+        engine
+            .generate(&[])
+            .unwrap_or_else(|_| "Prueba lista.".into())
+    };
+    store
+        .append(&conv.id, ChatRole::Assistant, &welcome)
+        .map_err(|err| err.to_string())?;
+    *state
+        .conversation_id
+        .lock()
+        .map_err(|_| "lock".to_string())? = conv.id;
+    Ok(())
+}
+
+#[tauri::command]
 fn send_message(state: tauri::State<AppState>, text: String) -> Result<String, String> {
     let text = text.trim().to_string();
     if text.is_empty() {
         return Ok(String::new());
     }
     let store = store()?;
+    let id = state
+        .conversation_id
+        .lock()
+        .map_err(|_| "lock".to_string())?
+        .clone();
     store
-        .append(&state.conversation_id, ChatRole::User, &text)
+        .append(&id, ChatRole::User, &text)
         .map_err(|err| err.to_string())?;
-    let messages = store
-        .messages(&state.conversation_id)
-        .map_err(|err| err.to_string())?;
+    let messages = store.messages(&id).map_err(|err| err.to_string())?;
     let reply = {
         let mut engine = state.engine.lock().map_err(|_| "engine lock".to_string())?;
         engine.generate(&messages).map_err(|err| err.to_string())?
     };
     store
-        .append(&state.conversation_id, ChatRole::Assistant, &reply)
+        .append(&id, ChatRole::Assistant, &reply)
         .map_err(|err| err.to_string())?;
     Ok(reply)
 }
@@ -143,7 +208,7 @@ fn main() {
         repo_id,
         filename,
         engine_label: picked.label,
-        conversation_id: conv.id,
+        conversation_id: Mutex::new(conv.id),
         engine: Mutex::new(picked.engine),
     };
     tauri::Builder::default()
@@ -151,7 +216,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             session_info,
             load_history,
-            send_message
+            send_message,
+            list_conversations,
+            open_conversation,
+            new_conversation
         ])
         .run(tauri::generate_context!())
         .expect("error al abrir Prueba");

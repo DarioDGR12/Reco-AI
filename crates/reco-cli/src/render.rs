@@ -1,5 +1,13 @@
 use owo_colors::OwoColorize;
-use reco_core::{format_gib, AccelBackend, CatalogSource, HardwareProfile, Recommendation};
+use reco_catalog::DownloadedModel;
+use reco_core::chat::Conversation;
+use reco_core::infer::LlamaCliEngine;
+use reco_core::{
+    config_path, format_gib, AccelBackend, CatalogSource, HardwareProfile, RecoConfig,
+    Recommendation,
+};
+
+use crate::doctor::DoctorItem;
 
 pub fn print_ai(
     profile: &HardwareProfile,
@@ -150,6 +158,212 @@ fn row(width: usize, label: &str, value: &str) {
     };
     let text = format!("{label_col}{value}");
     println!("{} {}{}", "│".dimmed(), pad(&text, width), "│".dimmed());
+}
+
+pub fn print_home(
+    profile: &HardwareProfile,
+    downloaded: &[DownloadedModel],
+    recent: &[Conversation],
+) {
+    print_profile_box(profile);
+    println!();
+    let cfg = RecoConfig::load();
+    let llama = LlamaCliEngine::find_binary(cfg.llama.cli.as_deref());
+    let bytes: u64 = downloaded.iter().map(|m| m.size_bytes).sum();
+
+    println!("{}", "Estado".bold());
+    println!(
+        "  {}  {}",
+        "motor   ".dimmed(),
+        match &llama {
+            Some(path) => format!("llama-cli · {}", path.display()).to_string(),
+            None if !cfg.byok.openai_key.is_empty() => {
+                format!("OpenAI · {}", cfg.byok.openai_model)
+            }
+            None if !cfg.byok.anthropic_key.is_empty() => {
+                format!("Anthropic · {}", cfg.byok.anthropic_model)
+            }
+            None => "echo (instala llama.cpp o configura una clave)".to_string(),
+        }
+    );
+    println!(
+        "  {}  {} modelos · {}",
+        "local   ".dimmed(),
+        downloaded.len(),
+        format_gib(bytes)
+    );
+    println!("  {}  {}", "config  ".dimmed(), config_path().display());
+    println!();
+
+    if !downloaded.is_empty() {
+        println!("{}", "En disco".bold());
+        for model in downloaded.iter().take(5) {
+            println!(
+                "  {}  {}  {}",
+                model.repo_id.cyan(),
+                model.filename.dimmed(),
+                format_gib(model.size_bytes)
+            );
+        }
+        if downloaded.len() > 5 {
+            println!("  {}", format!("… y {} más", downloaded.len() - 5).dimmed());
+        }
+        println!();
+    }
+
+    if !recent.is_empty() {
+        println!("{}", "Chats recientes".bold());
+        for conv in recent.iter().take(4) {
+            println!(
+                "  {}  {}",
+                conv.title.cyan(),
+                format!("{} · {}", conv.repo_id, conv.filename).dimmed()
+            );
+        }
+        println!();
+    }
+
+    println!("{}", "Siguiente".bold());
+    println!(
+        "  {}   catálogo que cabe en esta máquina",
+        "reco ai".cyan()
+    );
+    println!(
+        "  {}  descarga y abre Prueba",
+        "reco run <modelo>".cyan()
+    );
+    println!(
+        "  {}  llama.cpp, claves y caché",
+        "reco doctor".cyan()
+    );
+    if llama.is_none() && cfg.byok.openai_key.is_empty() {
+        println!(
+            "  {}  para tokens reales",
+            "reco config set openai-key sk-...".cyan()
+        );
+    }
+}
+
+pub fn print_doctor(items: &[DoctorItem], json: bool) {
+    if json {
+        match serde_json::to_string_pretty(items) {
+            Ok(text) => println!("{text}"),
+            Err(err) => {
+                eprintln!("No se pudo serializar: {err}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+    println!("{}", "Reco doctor".bold());
+    println!();
+    for item in items {
+        let mark = match item.ok {
+            Some(true) => "✓".green().to_string(),
+            Some(false) => "✗".red().to_string(),
+            None => "·".dimmed().to_string(),
+        };
+        println!("  {mark}  {:<10}  {}", item.name, item.detail);
+        if let Some(hint) = &item.hint {
+            println!("      {}", hint.dimmed());
+        }
+    }
+}
+
+pub fn print_models(models: &[DownloadedModel], json: bool) {
+    if json {
+        let rows: Vec<serde_json::Value> = models
+            .iter()
+            .map(|m| {
+                serde_json::json!({
+                    "repo_id": m.repo_id,
+                    "filename": m.filename,
+                    "size_bytes": m.size_bytes,
+                    "path": m.path,
+                })
+            })
+            .collect();
+        println!("{}", serde_json::to_string_pretty(&rows).unwrap_or_default());
+        return;
+    }
+    if models.is_empty() {
+        println!("{}", "No hay GGUF descargados.".bold());
+        println!("  {}", "reco ai   elige uno ·  reco run <modelo>".dimmed());
+        return;
+    }
+    let total: u64 = models.iter().map(|m| m.size_bytes).sum();
+    println!(
+        "{}  {} · {}",
+        "Modelos locales".bold(),
+        format_gib(total),
+        reco_catalog::models_dir().display().to_string().dimmed()
+    );
+    println!();
+    let mut last = "";
+    for model in models {
+        if model.repo_id != last {
+            println!("  {}", model.repo_id.bold());
+            last = &model.repo_id;
+        }
+        println!(
+            "    {}  {}",
+            model.filename.cyan(),
+            format_gib(model.size_bytes).dimmed()
+        );
+    }
+    println!();
+    println!(
+        "  {}",
+        "reco models rm <repo>   borra del caché".dimmed()
+    );
+}
+
+pub fn print_config(cfg: &RecoConfig, json: bool) {
+    if json {
+        match serde_json::to_string_pretty(cfg) {
+            Ok(text) => println!("{text}"),
+            Err(err) => {
+                eprintln!("No se pudo serializar: {err}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+    println!("{}  {}", "Config".bold(), config_path().display().dimmed());
+    println!();
+    println!("  {}  {}", "openai-key     ".dimmed(), empty_or(&cfg.byok.openai_key));
+    println!("  {}  {}", "openai-base    ".dimmed(), cfg.byok.openai_base);
+    println!("  {}  {}", "openai-model   ".dimmed(), cfg.byok.openai_model);
+    println!(
+        "  {}  {}",
+        "anthropic-key  ".dimmed(),
+        empty_or(&cfg.byok.anthropic_key)
+    );
+    println!(
+        "  {}  {}",
+        "anthropic-model".dimmed(),
+        cfg.byok.anthropic_model
+    );
+    println!(
+        "  {}  {}",
+        "llama-cli      ".dimmed(),
+        cfg.llama.cli.as_deref().unwrap_or("—")
+    );
+    println!("  {}  {}", "n-predict      ".dimmed(), cfg.llama.n_predict);
+    println!("  {}  {}", "n-ctx          ".dimmed(), cfg.llama.n_ctx);
+    println!(
+        "  {}  {}",
+        "n-gpu-layers   ".dimmed(),
+        cfg.llama.n_gpu_layers
+    );
+}
+
+fn empty_or(value: &str) -> &str {
+    if value.is_empty() {
+        "—"
+    } else {
+        value
+    }
 }
 
 fn pad(text: &str, width: usize) -> String {

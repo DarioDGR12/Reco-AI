@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 clap.workspace = true
+clap_complete.workspace = true
 crossterm.workspace = true
 owo-colors.workspace = true
 ratatui.workspace = true

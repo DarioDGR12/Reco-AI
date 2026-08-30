@@ -7,6 +7,9 @@ pub struct AiTui {
     selected: usize,
     query: String,
     pub searching: bool,
+    pub show_help: bool,
+    pub downloaded_only: bool,
+    downloaded: std::collections::HashSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,7 +20,7 @@ pub enum TuiAction {
 }
 
 impl AiTui {
-    pub fn new(recs: Vec<Recommendation>) -> Self {
+    pub fn new(recs: Vec<Recommendation>, downloaded: std::collections::HashSet<String>) -> Self {
         let len = recs.len();
         Self {
             recs,
@@ -25,7 +28,15 @@ impl AiTui {
             selected: 0,
             query: String::new(),
             searching: false,
+            show_help: false,
+            downloaded_only: false,
+            downloaded,
         }
+    }
+
+    pub fn is_downloaded(&self, rec: &Recommendation) -> bool {
+        self.downloaded
+            .contains(&format!("{}:{}", rec.repo_id, rec.filename))
     }
 
     pub fn query(&self) -> &str {
@@ -74,6 +85,15 @@ impl AiTui {
         }
         match ch {
             'q' | 'Q' => TuiAction::Quit,
+            '?' => {
+                self.show_help = !self.show_help;
+                TuiAction::None
+            }
+            'd' | 'D' => {
+                self.downloaded_only = !self.downloaded_only;
+                self.apply_filter();
+                TuiAction::None
+            }
             '/' => {
                 self.searching = true;
                 TuiAction::None
@@ -115,6 +135,9 @@ impl AiTui {
             .iter()
             .enumerate()
             .filter(|(_, rec)| {
+                if self.downloaded_only && !self.is_downloaded(rec) {
+                    return false;
+                }
                 if q.is_empty() {
                     return true;
                 }
@@ -158,11 +181,14 @@ mod tests {
 
     #[test]
     fn navigate_filter_and_confirm() {
-        let mut tui = AiTui::new(vec![
-            rec("Qwen/Qwen2.5-7B-Instruct-GGUF", "q4.gguf"),
-            rec("bartowski/Llama-3.1-8B-Instruct-GGUF", "q4.gguf"),
-            rec("unsloth/Llama-3.2-3B-Instruct-GGUF", "q4.gguf"),
-        ]);
+        let mut tui = AiTui::new(
+            vec![
+                rec("Qwen/Qwen2.5-7B-Instruct-GGUF", "q4.gguf"),
+                rec("bartowski/Llama-3.1-8B-Instruct-GGUF", "q4.gguf"),
+                rec("unsloth/Llama-3.2-3B-Instruct-GGUF", "q4.gguf"),
+            ],
+            std::collections::HashSet::new(),
+        );
         tui.down();
         assert!(tui.current().unwrap().repo_id.contains("Llama-3.1"));
         tui.handle_char('/');

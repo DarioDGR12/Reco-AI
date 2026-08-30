@@ -13,6 +13,8 @@ pub struct PruebaSession {
     pub messages: Vec<ChatMessage>,
     pub input: String,
     pub status: String,
+    pub offset: usize,
+    pub show_help: bool,
     engine: Box<dyn InferEngine>,
 }
 
@@ -43,7 +45,9 @@ impl PruebaSession {
             engine_label: picked.label,
             messages,
             input: String::new(),
-            status: "enter enviar  ·  esc salir".into(),
+            status: "enter enviar  ·  ^n chat nuevo  ·  ? ayuda  ·  esc salir".into(),
+            offset: 0,
+            show_help: false,
             engine: picked.engine,
         })
     }
@@ -96,7 +100,40 @@ impl PruebaSession {
             role: ChatRole::Assistant,
             content: reply,
         });
-        self.status = "enter enviar  ·  esc salir".into();
+        self.status = "enter enviar  ·  ^n chat nuevo  ·  ? ayuda  ·  esc salir".into();
+        self.offset = 0;
+        Ok(())
+    }
+
+    pub fn toggle_help(&mut self) {
+        self.show_help = !self.show_help;
+    }
+
+    pub fn page_up(&mut self) {
+        self.offset = self.offset.saturating_add(8);
+    }
+
+    pub fn page_down(&mut self) {
+        self.offset = self.offset.saturating_sub(8);
+    }
+
+    pub fn new_chat(&mut self, store: &ChatStore) -> Result<(), String> {
+        let conv = store
+            .new_conversation(&self.repo_id, &self.filename)
+            .map_err(|err| err.to_string())?;
+        let welcome = self
+            .engine
+            .generate(&[])
+            .unwrap_or_else(|_| "Prueba lista.".into());
+        store
+            .append(&conv.id, ChatRole::Assistant, &welcome)
+            .map_err(|err| err.to_string())?;
+        self.conversation_id = conv.id;
+        self.messages = store
+            .messages(&self.conversation_id)
+            .map_err(|err| err.to_string())?;
+        self.offset = 0;
+        self.status = "chat nuevo".into();
         Ok(())
     }
 }

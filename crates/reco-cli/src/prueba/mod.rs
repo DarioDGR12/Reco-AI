@@ -4,7 +4,7 @@ pub use state::PruebaSession;
 
 use std::io::{self, stdout};
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::{
     disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
@@ -45,13 +45,27 @@ pub fn run(store: &ChatStore, rec: &Recommendation, picked: PickedEngine) -> io:
             continue;
         }
         match key.code {
-            KeyCode::Esc => break,
+            KeyCode::Esc => {
+                if session.show_help {
+                    session.show_help = false;
+                } else {
+                    break;
+                }
+            }
             KeyCode::Enter => {
                 if let Err(err) = session.submit(store) {
                     session.status = err;
                 }
             }
+            KeyCode::PageUp => session.page_up(),
+            KeyCode::PageDown => session.page_down(),
             KeyCode::Backspace => session.backspace(),
+            KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if let Err(err) = session.new_chat(store) {
+                    session.status = err;
+                }
+            }
+            KeyCode::Char('?') if session.input.is_empty() => session.toggle_help(),
             KeyCode::Char(ch) => session.type_char(ch),
             _ => {}
         }
@@ -109,8 +123,38 @@ fn draw(frame: &mut ratatui::Frame<'_>, session: &PruebaSession) {
         }
         lines.push(Line::from(""));
     }
-    let history = Paragraph::new(lines).wrap(Wrap { trim: false });
+    let height = chunks[1].height as usize;
+    let end = lines.len().saturating_sub(session.offset);
+    let start = end.saturating_sub(height.max(1));
+    let history = Paragraph::new(lines[start..end].to_vec()).wrap(Wrap { trim: false });
     frame.render_widget(history, chunks[1]);
+    if session.show_help {
+        let help = Paragraph::new(vec![
+            Line::from(Span::styled(
+                " Prueba",
+                Style::default().fg(MAUVE).add_modifier(Modifier::BOLD),
+            )),
+            Line::from(" enter        enviar"),
+            Line::from(" RePág/AvPág  historial"),
+            Line::from(" Ctrl+n       conversación nueva"),
+            Line::from(" ?            esta ayuda"),
+            Line::from(" esc          cerrar"),
+        ])
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(MAUVE)),
+        );
+        let w = 36u16;
+        let h = 9u16;
+        let area = ratatui::layout::Rect {
+            x: frame.area().x + frame.area().width.saturating_sub(w) / 2,
+            y: frame.area().y + frame.area().height.saturating_sub(h) / 2,
+            width: w,
+            height: h,
+        };
+        frame.render_widget(help, area);
+    }
 
     let input = Paragraph::new(Line::from(vec![
         Span::styled(" › ", Style::default().fg(MAUVE)),

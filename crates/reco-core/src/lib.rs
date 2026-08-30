@@ -23,5 +23,5 @@ pub use quant::GgufQuant;
 pub use config::RecoConfig;
 pub use paths::{config_path, data_dir, db_path};
 pub use recommend::{memory_budget_bytes, recommend};
-pub use resolve::{resolve_spec, ResolveError};
+pub use resolve::{resolve_spec, suggest_repos, ResolveError};
 pub use store::ChatStore;

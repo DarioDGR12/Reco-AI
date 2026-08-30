@@ -75,6 +75,7 @@ fn detect_live_machine_does_not_panic() {
 fn format_gib_one_decimal() {
     assert_eq!(format_gib(8 * GIB), "8.0 GiB");
     assert_eq!(format_gib(GIB / 2), "0.5 GiB");
+    assert_eq!(format_gib(4 * 1024 * 1024), "4.0 MiB");
 }
 
 #[test]

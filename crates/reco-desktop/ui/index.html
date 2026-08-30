@@ -7,20 +7,37 @@
     <link rel="stylesheet" href="app.css" />
   </head>
   <body>
-    <header>
-      <div>
+    <aside>
+      <div class="brand">
         <strong>Prueba</strong>
-        <span id="model">Reco AI</span>
+        <span>Reco AI</span>
       </div>
-      <span id="engine" class="dim"></span>
-    </header>
-    <main id="log"></main>
-    <footer>
-      <form id="form">
-        <input id="input" autocomplete="off" placeholder="escribe y pulsa enter…" />
-        <button type="submit">enviar</button>
-      </form>
-    </footer>
+      <button type="button" id="new-chat">+ chat nuevo</button>
+      <nav id="convos"></nav>
+    </aside>
+    <section class="main">
+      <header>
+        <div>
+          <h1 id="model">Reco AI</h1>
+          <p id="engine" class="dim"></p>
+        </div>
+      </header>
+      <main id="log">
+        <div class="empty" id="empty">
+          Elige un modelo con <code>reco run</code> y escribe aquí.
+        </div>
+      </main>
+      <footer>
+        <form id="form">
+          <textarea
+            id="input"
+            rows="1"
+            placeholder="Mensaje…  Enter envía · Shift+Enter salto"
+          ></textarea>
+          <button type="submit">Enviar</button>
+        </form>
+      </footer>
+    </section>
     <script src="app.js"></script>
   </body>
 </html>
