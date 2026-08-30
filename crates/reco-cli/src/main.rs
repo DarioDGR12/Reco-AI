@@ -9,7 +9,7 @@ use std::io::{self, IsTerminal};
 use clap::{Parser, Subcommand};
 use reco_catalog::{load_catalog, LoadOptions};
 use reco_core::hardware::fixtures;
-use reco_core::{detect, recommend, resolve_spec};
+use reco_core::{config_path, detect, recommend, resolve_spec, RecoConfig};
 use render::{print_ai, print_hw};
 use serde::Serialize;
 
@@ -18,7 +18,7 @@ use serde::Serialize;
     name = "reco",
     version,
     about = "Reco AI — elige y corre modelos locales según tu hardware",
-    long_about = "Catálogo GGUF de Hugging Face + hardware + TUI + descarga + Prueba (chat) + reco serve.\n\nLa ventana Tauri y llama.cpp real llegan después; hoy Prueba y serve usan un motor demo intercambiable."
+    long_about = "Catálogo GGUF de Hugging Face + hardware + TUI + descarga + Prueba (chat) + reco serve.\n\nPrueba y serve usan llama-cli si hay GGUF local, si no BYOK (OpenAI/Anthropic), si no echo."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -56,12 +56,14 @@ enum Commands {
         modelo: String,
         #[arg(long)]
         dry_run: bool,
-        /// Abre Prueba con EchoEngine, sin descargar
+        /// Fuerza EchoEngine, sin descargar
         #[arg(long)]
         demo: bool,
         /// Descarga (si hace falta) y no abre el chat
         #[arg(long)]
         no_chat: bool,
+        #[arg(long, default_value = "auto")]
+        provider: String,
         #[arg(long)]
         offline: bool,
         #[arg(long)]
@@ -74,6 +76,8 @@ enum Commands {
         modelo: String,
         #[arg(long)]
         demo: bool,
+        #[arg(long, default_value = "auto")]
+        provider: String,
         #[arg(long)]
         offline: bool,
         #[arg(long, hide = true)]
@@ -88,12 +92,32 @@ enum Commands {
         host: String,
         #[arg(long)]
         demo: bool,
+        #[arg(long, default_value = "auto")]
+        provider: String,
         #[arg(long)]
         offline: bool,
         #[arg(long)]
         refresh: bool,
         #[arg(long, hide = true)]
         fixture: Option<String>,
+    },
+    /// Claves BYOK y ruta de llama-cli (`~/.config/reco/config.json`)
+    Config {
+        #[command(subcommand)]
+        action: ConfigCmd,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigCmd {
+    /// Imprime la ruta del JSON de configuración
+    Path,
+    /// Muestra la config (claves enmascaradas)
+    Show,
+    /// Guarda una clave (`openai-key`, `anthropic-key`, `llama-cli`, …)
+    Set {
+        key: String,
+        value: String,
     },
 }
 
@@ -126,6 +150,7 @@ fn main() {
             dry_run,
             demo,
             no_chat,
+            provider,
             offline,
             refresh,
             fixture,
@@ -143,7 +168,7 @@ fn main() {
                 }
             }
             if !no_chat {
-                if let Err(err) = run::open_prueba(&rec, true) {
+                if let Err(err) = run::open_prueba(&rec, demo, &provider) {
                     fail(err);
                 }
             }
@@ -151,11 +176,12 @@ fn main() {
         Commands::Chat {
             modelo,
             demo,
+            provider,
             offline,
             fixture,
         } => {
             let rec = resolve_model(&modelo, offline, false, fixture.as_deref());
-            if let Err(err) = run::open_prueba(&rec, demo) {
+            if let Err(err) = run::open_prueba(&rec, demo, &provider) {
                 fail(err);
             }
         }
@@ -164,14 +190,43 @@ fn main() {
             port,
             host,
             demo,
+            provider,
             offline,
             refresh,
             fixture,
         } => {
             let rec = resolve_model(&modelo, offline, refresh, fixture.as_deref());
-            if let Err(err) = server::run(&rec, port, &host, demo) {
+            let picked = match run::resolve_engine(&rec, demo, &provider) {
+                Ok(picked) => picked,
+                Err(err) => fail(err),
+            };
+            if let Err(err) = server::run(&rec, port, &host, picked) {
                 fail(err);
             }
+        }
+        Commands::Config { action } => cmd_config(action),
+    }
+}
+
+fn cmd_config(action: ConfigCmd) {
+    match action {
+        ConfigCmd::Path => println!("{}", config_path().display()),
+        ConfigCmd::Show => {
+            let cfg = RecoConfig::load().masked();
+            match serde_json::to_string_pretty(&cfg) {
+                Ok(text) => println!("{text}"),
+                Err(err) => fail(format!("No se pudo serializar: {err}")),
+            }
+        }
+        ConfigCmd::Set { key, value } => {
+            let mut cfg = RecoConfig::load();
+            if let Err(err) = cfg.set(&key, &value) {
+                fail(err);
+            }
+            if let Err(err) = cfg.save() {
+                fail(err);
+            }
+            println!("guardado {} en {}", key, config_path().display());
         }
     }
 }
@@ -217,7 +272,7 @@ fn cmd_ai(
                 if let Err(err) = run::download_recommendation(&chosen, false) {
                     fail(err);
                 }
-                if let Err(err) = run::open_prueba(&chosen, true) {
+                if let Err(err) = run::open_prueba(&chosen, false, "auto") {
                     fail(err);
                 }
             }

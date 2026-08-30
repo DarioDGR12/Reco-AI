@@ -16,6 +16,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Terminal;
 use reco_core::chat::ChatRole;
+use reco_core::infer::PickedEngine;
 use reco_core::store::ChatStore;
 use reco_core::Recommendation;
 
@@ -25,9 +26,8 @@ const DIM: Color = Color::Rgb(108, 112, 134);
 const TEXT: Color = Color::Rgb(205, 214, 244);
 const SURFACE: Color = Color::Rgb(49, 50, 68);
 
-pub fn run(store: &ChatStore, rec: &Recommendation, demo: bool) -> io::Result<()> {
-    let mut session = PruebaSession::echo(store, rec).map_err(io::Error::other)?;
-    let _ = demo;
+pub fn run(store: &ChatStore, rec: &Recommendation, picked: PickedEngine) -> io::Result<()> {
+    let mut session = PruebaSession::open(store, rec, picked).map_err(io::Error::other)?;
 
     enable_raw_mode()?;
     let mut stdout = stdout();
@@ -79,7 +79,10 @@ fn draw(frame: &mut ratatui::Frame<'_>, session: &PruebaSession) {
             Style::default().fg(MAUVE).add_modifier(Modifier::BOLD),
         ),
         Span::styled(
-            format!("{}  ·  {}", session.repo_id, session.filename),
+            format!(
+                "{}  ·  {}  ·  {}",
+                session.repo_id, session.filename, session.engine_label
+            ),
             Style::default().fg(DIM),
         ),
     ]))
