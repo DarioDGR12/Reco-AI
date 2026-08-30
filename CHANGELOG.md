@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- **`reco api`** — generate named APIs (unique key, port, client kit) so other apps use models on this machine.
+- Hub: one server, many keys, each key scoped to its model. `--lan` binds `0.0.0.0`.
+- Clients: curl, Python, JS, Continue, Cursor, Open WebUI, LangChain, `.env`, OpenAPI.
+- `reco serve` without a model starts the hub.
+
 ## 0.2.0
 
 Product pass over the 0.1 CLI.

@@ -125,6 +125,30 @@ pub fn collect(profile: &reco_core::HardwareProfile) -> Vec<DoctorItem> {
         hint: None,
     });
 
+    let apis = reco_core::ApiRegistry::load();
+    items.push(DoctorItem {
+        ok: Some(true),
+        name: "apis".into(),
+        detail: if apis.endpoints.is_empty() {
+            "ninguna generada".into()
+        } else {
+            format!(
+                "{} · {}",
+                apis.endpoints.len(),
+                apis.endpoints
+                    .iter()
+                    .map(|e| e.slug.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        },
+        hint: if apis.endpoints.is_empty() {
+            Some("reco api create <modelo> --name mi-app".into())
+        } else {
+            Some("reco api start   hub en esta máquina".into())
+        },
+    });
+
     items
 }
 

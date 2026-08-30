@@ -3,8 +3,8 @@ use reco_catalog::DownloadedModel;
 use reco_core::chat::Conversation;
 use reco_core::infer::LlamaCliEngine;
 use reco_core::{
-    config_path, format_gib, AccelBackend, CatalogSource, HardwareProfile, RecoConfig,
-    Recommendation,
+    config_path, format_gib, AccelBackend, ApiRegistry, CatalogSource, HardwareProfile,
+    RecoConfig, Recommendation,
 };
 
 use crate::doctor::DoctorItem;
@@ -193,6 +193,19 @@ pub fn print_home(
         format_gib(bytes)
     );
     println!("  {}  {}", "config  ".dimmed(), config_path().display());
+    let apis = ApiRegistry::load();
+    if apis.endpoints.is_empty() {
+        println!(
+            "  {}  ninguna · reco api create <modelo> --name mi-app",
+            "apis    ".dimmed()
+        );
+    } else {
+        println!(
+            "  {}  {} listas · reco api start",
+            "apis    ".dimmed(),
+            apis.endpoints.len()
+        );
+    }
     println!();
 
     if !downloaded.is_empty() {
@@ -235,6 +248,10 @@ pub fn print_home(
     println!(
         "  {}  llama.cpp, claves y caché",
         "reco doctor".cyan()
+    );
+    println!(
+        "  {}  API para otra app (esta máquina sirve)",
+        "reco api create <modelo> --name mi-app".cyan()
     );
     if llama.is_none() && cfg.byok.openai_key.is_empty() {
         println!(
