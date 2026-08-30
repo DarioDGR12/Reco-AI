@@ -1,11 +1,17 @@
-//! Shared domain for Reco AI.
-//!
-//! The first implemented piece is hardware detection. Catalog indexing,
-//! recommendation scoring, and inference will land in later crates/modules.
+//! Shared domain for Reco AI: hardware detection, GGUF types, and scoring.
 
+pub mod files;
 pub mod hardware;
+pub mod model;
+pub mod quant;
+pub mod recommend;
 
 pub use hardware::{
     detect, detect_with, format_gib, AccelBackend, CpuInfo, GpuInfo, GpuVendor, HardwareProbe,
     HardwareProfile, MemoryInfo, OsInfo,
 };
+pub use model::{
+    Catalog, CatalogSource, GgufFile, ModelEntry, ModelParams, Recommendation, Scores,
+};
+pub use quant::GgufQuant;
+pub use recommend::{memory_budget_bytes, recommend};

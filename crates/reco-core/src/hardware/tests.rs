@@ -1,3 +1,4 @@
+use super::fixtures::{apple_unified, cpu_only, rtx_4060};
 use super::gpu::{
     is_primary_drm_card, lookup_pci_ids, parse_nvidia_smi_line, parse_system_profiler,
     parse_vram_label, vendor_from_name,
@@ -26,84 +27,11 @@ impl HardwareProbe for MockProbe {
     }
 }
 
-fn rtx_4060_profile() -> HardwareProfile {
-    HardwareProfile {
-        cpu: CpuInfo {
-            name: "AMD Ryzen 7 5800X".into(),
-            physical_cores: Some(8),
-            logical_cores: 16,
-        },
-        memory: MemoryInfo {
-            total_bytes: 32 * GIB,
-            available_bytes: 18 * GIB,
-        },
-        gpus: vec![GpuInfo {
-            name: "NVIDIA GeForce RTX 4060".into(),
-            vendor: GpuVendor::Nvidia,
-            vram_bytes: Some(8 * GIB),
-            backend: AccelBackend::Cuda,
-        }],
-        os: OsInfo {
-            name: "Linux".into(),
-            version: Some("24.04".into()),
-            arch: "x86_64".into(),
-            kernel: Some("6.12.0".into()),
-        },
-    }
-}
-
-fn cpu_only_profile() -> HardwareProfile {
-    HardwareProfile {
-        cpu: CpuInfo {
-            name: "Intel Core i5-8250U".into(),
-            physical_cores: Some(4),
-            logical_cores: 8,
-        },
-        memory: MemoryInfo {
-            total_bytes: 8 * GIB,
-            available_bytes: 3 * GIB,
-        },
-        gpus: vec![],
-        os: OsInfo {
-            name: "Linux".into(),
-            version: None,
-            arch: "x86_64".into(),
-            kernel: None,
-        },
-    }
-}
-
-fn apple_unified_profile() -> HardwareProfile {
-    HardwareProfile {
-        cpu: CpuInfo {
-            name: "Apple M3".into(),
-            physical_cores: Some(8),
-            logical_cores: 8,
-        },
-        memory: MemoryInfo {
-            total_bytes: 16 * GIB,
-            available_bytes: 8 * GIB,
-        },
-        gpus: vec![GpuInfo {
-            name: "Apple M3".into(),
-            vendor: GpuVendor::Apple,
-            vram_bytes: Some(16 * GIB),
-            backend: AccelBackend::Metal,
-        }],
-        os: OsInfo {
-            name: "macOS".into(),
-            version: Some("15.0".into()),
-            arch: "arm64".into(),
-            kernel: Some("24.0.0".into()),
-        },
-    }
-}
-
 const GIB: u64 = 1024 * 1024 * 1024;
 
 #[test]
 fn mock_rtx_4060_roundtrips_json() {
-    let profile = rtx_4060_profile();
+    let profile = rtx_4060();
     let json = serde_json::to_string_pretty(&profile).unwrap();
     let back: HardwareProfile = serde_json::from_str(&json).unwrap();
     assert_eq!(profile, back);
@@ -115,7 +43,7 @@ fn mock_rtx_4060_roundtrips_json() {
 #[test]
 fn mock_cpu_only_uses_cpu_backend() {
     let profile = detect_with(&MockProbe {
-        profile: cpu_only_profile(),
+        profile: cpu_only(),
     });
     assert!(profile.gpus.is_empty());
     assert_eq!(profile.primary_backend(), AccelBackend::Cpu);
@@ -125,7 +53,7 @@ fn mock_cpu_only_uses_cpu_backend() {
 #[test]
 fn mock_apple_unified_uses_metal() {
     let profile = detect_with(&MockProbe {
-        profile: apple_unified_profile(),
+        profile: apple_unified(),
     });
     assert_eq!(profile.primary_backend(), AccelBackend::Metal);
     assert_eq!(profile.gpus[0].vendor, GpuVendor::Apple);

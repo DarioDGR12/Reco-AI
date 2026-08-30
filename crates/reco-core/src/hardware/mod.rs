@@ -1,6 +1,7 @@
-//! Hardware detection used by `reco ai` / `reco hw` and, later, the recommender.
+//! Hardware detection used by `reco ai` / `reco hw` and the recommender.
 
 mod detect;
+pub mod fixtures;
 mod gpu;
 mod probe;
 mod types;
