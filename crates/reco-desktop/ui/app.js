@@ -52,7 +52,7 @@ function append(role, content) {
 }
 
 function formatScore(total) {
-  return `${Math.round((total || 0) * 100)}`;
+  return `${Math.round(total || 0)}`;
 }
 
 function renderCard(item, { allowDemo = true } = {}) {
@@ -64,7 +64,7 @@ function renderCard(item, { allowDemo = true } = {}) {
     <div class="repo">${item.repo_id}</div>
     <div class="meta">${item.quant} · ${item.size}${est}${params}</div>
     <div class="why">${item.why || ""}</div>
-    <div class="score"><i style="width:${Math.max(8, (item.total || 0) * 100)}%"></i></div>
+    <div class="score"><i style="width:${Math.max(8, Math.min(100, item.total || 0))}%"></i></div>
     <div class="pills">
       ${item.downloaded ? '<span class="pill ok">en disco</span>' : ""}
       ${item.total ? `<span class="pill">score ${formatScore(item.total)}</span>` : ""}
