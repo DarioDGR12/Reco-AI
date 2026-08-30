@@ -1,9 +1,13 @@
 mod render;
+mod run;
+mod tui;
+
+use std::io::{self, IsTerminal};
 
 use clap::{Parser, Subcommand};
 use reco_catalog::{load_catalog, LoadOptions};
 use reco_core::hardware::fixtures;
-use reco_core::{detect, recommend};
+use reco_core::{detect, recommend, resolve_spec};
 use render::{print_ai, print_hw, print_stub};
 use serde::Serialize;
 
@@ -12,7 +16,7 @@ use serde::Serialize;
     name = "reco",
     version,
     about = "Reco AI — elige y corre modelos locales según tu hardware",
-    long_about = "Unifica el catálogo GGUF de Hugging Face, la detección de hardware y un chat nativo (Prueba).\n\nHoy: reco ai recomienda GGUF según tu máquina. reco run y reco serve llegan en siguientes versiones."
+    long_about = "Unifica el catálogo GGUF de Hugging Face, la detección de hardware y un chat nativo (Prueba).\n\nreco ai abre una TUI para elegir. reco run descarga el GGUF. Prueba (Tauri) llega después."
 )]
 struct Cli {
     #[command(subcommand)]
@@ -26,8 +30,14 @@ enum Commands {
         /// Imprime el perfil y las recomendaciones en JSON
         #[arg(long)]
         json: bool,
+        /// Lista en texto (sin TUI)
+        #[arg(long)]
+        list: bool,
+        /// Fuerza la TUI aunque stdout no sea un TTY
+        #[arg(long)]
+        tui: bool,
         /// Cuántos modelos mostrar
-        #[arg(long, default_value_t = 8)]
+        #[arg(long, default_value_t = 12)]
         limit: usize,
         /// Ignora la caché y vuelve a llamar a Hugging Face
         #[arg(long)]
@@ -47,10 +57,19 @@ enum Commands {
         #[arg(long, hide = true)]
         fixture: Option<String>,
     },
-    /// Descarga el modelo (si hace falta) y abre Prueba
+    /// Descarga el GGUF (elige la cuantización que cabe) y prepara Prueba
     Run {
-        /// Identificador del modelo (Hugging Face o alias local)
+        /// `org/repo`, substring, o `org/repo:archivo.gguf`
         modelo: String,
+        /// Solo muestra URL y destino
+        #[arg(long)]
+        dry_run: bool,
+        #[arg(long)]
+        offline: bool,
+        #[arg(long)]
+        refresh: bool,
+        #[arg(long, hide = true)]
+        fixture: Option<String>,
     },
     /// Levanta un servidor local con una API key `sk-...`
     Serve {
@@ -73,6 +92,8 @@ fn main() {
     match cli.command {
         Commands::Ai {
             json,
+            list,
+            tui: force_tui,
             limit,
             refresh,
             offline,
@@ -104,6 +125,24 @@ fn main() {
                         std::process::exit(1);
                     }
                 }
+                return;
+            }
+
+            let use_tui = (force_tui || io::stdout().is_terminal()) && !list;
+            if use_tui {
+                match tui::run(&profile, recs, catalog.source) {
+                    Ok(Some(chosen)) => {
+                        if let Err(err) = run::download_recommendation(&chosen, false) {
+                            eprintln!("{err}");
+                            std::process::exit(1);
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(err) => {
+                        eprintln!("TUI: {err}");
+                        std::process::exit(1);
+                    }
+                }
             } else {
                 print_ai(
                     &profile,
@@ -118,13 +157,32 @@ fn main() {
             let profile = resolve_profile(fixture.as_deref());
             print_hw(&profile, json);
         }
-        Commands::Run { modelo } => {
-            print_stub(
-                "run",
-                &modelo,
-                "Próximamente: descarga el GGUF, elige la cuantización que cabe en tu VRAM y abre Prueba.",
-            );
-            std::process::exit(1);
+        Commands::Run {
+            modelo,
+            dry_run,
+            offline,
+            refresh,
+            fixture,
+        } => {
+            let profile = resolve_profile(fixture.as_deref());
+            let (catalog, _) = load_catalog(LoadOptions {
+                refresh,
+                offline,
+                limit: 80,
+                ..LoadOptions::default()
+            });
+            match resolve_spec(&profile, &catalog, &modelo) {
+                Ok(rec) => {
+                    if let Err(err) = run::download_recommendation(&rec, dry_run) {
+                        eprintln!("{err}");
+                        std::process::exit(1);
+                    }
+                }
+                Err(err) => {
+                    eprintln!("{err}");
+                    std::process::exit(1);
+                }
+            }
         }
         Commands::Serve { modelo } => {
             print_stub(

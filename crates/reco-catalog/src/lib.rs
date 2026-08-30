@@ -2,10 +2,14 @@
 
 mod cache;
 mod client;
+mod download;
 mod seed;
 
-pub use cache::{cache_path, load_cache, save_cache};
+pub use cache::{cache_path, cache_root, load_cache, save_cache};
 pub use client::{fetch_huggingface, FetchOptions};
+pub use download::{
+    download_gguf, huggingface_resolve_url, is_downloaded, local_model_path, models_dir,
+};
 pub use seed::seed_catalog;
 
 use reco_core::{Catalog, CatalogSource};

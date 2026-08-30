@@ -23,3 +23,5 @@ sysinfo = "0.33"
 nvml-wrapper = "0.11"
 thiserror = "2.0"
 ureq = { version = "2.12", features = ["json"] }
+crossterm = "0.28"
+ratatui = "0.29"
