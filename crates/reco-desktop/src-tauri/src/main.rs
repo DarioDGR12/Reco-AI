@@ -122,7 +122,7 @@ fn hardware_card() -> HardwareCard {
         })
         .unwrap_or_else(|| "sin GPU (CPU)".into());
     HardwareCard {
-        cpu: profile.cpu.name,
+        cpu: profile.cpu.name.clone(),
         ram: format_gib(profile.memory.total_bytes),
         gpu,
         backend: profile.primary_backend().display_name().into(),

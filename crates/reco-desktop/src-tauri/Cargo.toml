@@ -6,6 +6,9 @@ edition = "2021"
 license = "MIT"
 rust-version = "1.83"
 
+# Standalone crate: WebKitGTK is not required for `cargo test --workspace`.
+[workspace]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
