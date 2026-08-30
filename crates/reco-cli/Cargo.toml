@@ -20,5 +20,7 @@ owo-colors.workspace = true
 ratatui.workspace = true
 reco-catalog.workspace = true
 reco-core.workspace = true
+getrandom.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tiny_http.workspace = true

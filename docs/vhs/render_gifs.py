@@ -237,7 +237,7 @@ def gif_tui_preview() -> None:
             color = PEACH if selected else FG
             draw.text((PAD + 14, box_y), title if not selected else title.replace("   ", "›  ", 1), font=fnt, fill=color)
             draw.text((PAD + 36, box_y + 20), meta, font=small, fill=CYAN if selected else DIM)
-        draw.text((PAD + 8, 380), "reco ai  ·  TUI Ratatui", font=small, fill=YELLOW)
+        draw.text((PAD + 8, 380), "reco ai  ·  TUI Ratatui  ·  listo", font=small, fill=YELLOW)
         frames.extend([img] * 10)
     save_gif(ASSETS / "preview-tui.gif", frames, duration=180)
 
@@ -275,7 +275,7 @@ def gif_prueba_preview() -> None:
                 draw.text((x, y + 8 + i * 20), line, font=fnt, fill=color)
             y += h + 12
         draw.rounded_rectangle((PAD, 440, W - PAD, 476), 8, fill=SURFACE)
-        draw.text((PAD + 16, 450), "Escribe un mensaje…                          preview · próximamente", font=small, fill=DIM)
+        draw.text((PAD + 16, 450), "Escribe un mensaje…                    Prueba TUI · historial SQLite", font=small, fill=DIM)
         frames.extend([img] * 12)
     save_gif(ASSETS / "preview-prueba.gif", frames, duration=200)
 
@@ -291,7 +291,7 @@ def gif_serve_preview() -> None:
         "curl http://127.0.0.1:11434/v1/chat/completions \\",
         "  -H \"Authorization: Bearer sk-reco-8f3a2c91e0b74d1a\"",
         "",
-        "preview · reco serve · próximamente",
+        "reco serve  ·  API local lista (motor demo)",
     ]
     fnt = font(15)
     frames = []

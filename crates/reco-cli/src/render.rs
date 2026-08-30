@@ -77,16 +77,6 @@ pub fn print_hw(profile: &HardwareProfile, json: bool) {
     print_profile_box(profile);
 }
 
-pub fn print_stub(command: &str, modelo: &str, next: &str) {
-    println!(
-        "{} {} todavía no está implementado.",
-        "reco".bold(),
-        command.bold()
-    );
-    println!("  Modelo pedido: {}", modelo.cyan());
-    println!("  {next}");
-}
-
 fn print_profile_box(profile: &HardwareProfile) {
     let width = 56usize;
     let rule = "─".repeat(width);
