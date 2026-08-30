@@ -1,3 +1,4 @@
+mod api;
 mod doctor;
 mod prueba;
 mod render;
@@ -26,7 +27,7 @@ use render::{print_ai, print_config, print_doctor, print_home, print_hw, print_m
     version,
     about = "Reco AI — elige y corre el modelo que cabe en tu máquina",
     long_about = "Reco lee tu hardware, indexa GGUF en Hugging Face y te deja chatear o servir el modelo en un comando.\n\nSin argumentos muestra el estado de esta máquina.",
-    after_help = "Ejemplos:\n  reco                      estado y siguientes pasos\n  reco ai                   catálogo que cabe aquí\n  reco run Qwen2.5-7B       descarga y abre Prueba\n  reco doctor               llama.cpp, claves y caché\n  reco serve Llama-3.1-8B   API local estilo OpenAI"
+    after_help = "Ejemplos:\n  reco                      estado y siguientes pasos\n  reco api create Qwen2.5-7B --name mi-app\n  reco api start            tu máquina sirve las APIs\n  reco api code mi-app --client python\n  reco ai                   catálogo que cabe aquí"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -89,13 +90,17 @@ enum Commands {
         #[arg(long, hide = true)]
         fixture: Option<String>,
     },
-    /// API local compatible con OpenAI
+    /// Enciende el hub (todas las APIs) o un modelo suelto
     Serve {
-        modelo: String,
+        modelo: Option<String>,
         #[arg(long, default_value_t = 11434)]
         port: u16,
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
+        #[arg(long)]
+        lan: bool,
+        #[arg(long)]
+        api: Option<String>,
         #[arg(long)]
         demo: bool,
         #[arg(long, default_value = "auto")]
@@ -106,6 +111,11 @@ enum Commands {
         refresh: bool,
         #[arg(long, hide = true)]
         fixture: Option<String>,
+    },
+    /// Genera APIs para otras apps (esta máquina es el servidor)
+    Api {
+        #[command(subcommand)]
+        action: ApiCmd,
     },
     /// Revisa llama.cpp, claves BYOK y el caché
     Doctor {
@@ -136,6 +146,67 @@ enum Commands {
 enum ModelsCmd {
     /// Borra un repo (o repo:archivo.gguf) del caché
     Rm { modelo: String },
+}
+
+#[derive(Subcommand)]
+enum ApiCmd {
+    /// Crea una API (clave + clientes) para un modelo
+    Create {
+        modelo: String,
+        #[arg(long)]
+        name: Option<String>,
+        #[arg(long, default_value = "auto")]
+        provider: String,
+        #[arg(long)]
+        lan: bool,
+        #[arg(long)]
+        port: Option<u16>,
+        #[arg(long)]
+        start: bool,
+        #[arg(long)]
+        demo: bool,
+        #[arg(long)]
+        offline: bool,
+        #[arg(long)]
+        refresh: bool,
+        #[arg(long, hide = true)]
+        fixture: Option<String>,
+    },
+    /// Lista las APIs guardadas
+    List {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Detalle y clave de una API
+    Show {
+        nombre: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Código para pegar en otra app
+    Code {
+        nombre: String,
+        #[arg(long)]
+        client: Option<String>,
+        #[arg(long)]
+        write: bool,
+    },
+    /// Enciende el hub (todas) o una API
+    Start {
+        nombre: Option<String>,
+        #[arg(long)]
+        host: Option<String>,
+        #[arg(long)]
+        port: Option<u16>,
+        #[arg(long)]
+        lan: bool,
+        #[arg(long)]
+        demo: bool,
+    },
+    /// Nueva API key (invalida la anterior)
+    Rotate { nombre: String },
+    /// Borra una API y su kit de clientes
+    Rm { nombre: String },
 }
 
 #[derive(Subcommand)]
@@ -216,22 +287,42 @@ fn main() {
         Some(Commands::Serve {
             modelo,
             port,
-            host,
+            mut host,
+            lan,
+            api: api_name,
             demo,
             provider,
             offline,
             refresh,
             fixture,
         }) => {
-            let rec = resolve_model(&modelo, offline, refresh, fixture.as_deref());
-            let picked = match run::resolve_engine(&rec, demo, &provider) {
-                Ok(picked) => picked,
-                Err(err) => fail(err),
-            };
-            if let Err(err) = server::run(&rec, port, &host, picked) {
+            if lan {
+                host = "0.0.0.0".into();
+            }
+            if let Some(name) = api_name {
+                if let Err(err) = api::start_named(Some(&name), Some(&host), Some(port), demo) {
+                    fail(err);
+                }
+            } else if let Some(modelo) = modelo {
+                let rec = resolve_model(&modelo, offline, refresh, fixture.as_deref());
+                if !demo {
+                    if let Err(err) = run::download_recommendation(&rec, false) {
+                        fail(err);
+                    }
+                }
+                let picked = match run::resolve_engine(&rec, demo, &provider) {
+                    Ok(picked) => picked,
+                    Err(err) => fail(err),
+                };
+                let endpoint = ensure_api(&rec, &provider, lan, port);
+                if let Err(err) = server::run(&rec, port, &host, picked, Some(endpoint)) {
+                    fail(err);
+                }
+            } else if let Err(err) = api::start_named(None, Some(&host), Some(port), demo) {
                 fail(err);
             }
         }
+        Some(Commands::Api { action }) => cmd_api(action),
         Some(Commands::Doctor { json, fixture }) => {
             let profile = resolve_profile(fixture.as_deref());
             print_doctor(&doctor::collect(&profile), json);
@@ -245,6 +336,116 @@ fn main() {
             let mut cmd = Cli::command();
             generate(shell, &mut cmd, "reco", &mut io::stdout());
         }
+    }
+}
+
+fn cmd_api(action: ApiCmd) {
+    let result = match action {
+        ApiCmd::Create {
+            modelo,
+            name,
+            provider,
+            lan,
+            port,
+            start,
+            demo,
+            offline,
+            refresh,
+            fixture,
+        } => {
+            let rec = resolve_model(&modelo, offline, refresh, fixture.as_deref());
+            if !demo {
+                if let Err(err) = run::download_recommendation(&rec, false) {
+                    fail(err);
+                }
+            }
+            api::create(
+                &rec,
+                name.as_deref(),
+                &provider,
+                lan,
+                port,
+                true,
+                start,
+                demo,
+            )
+        }
+        ApiCmd::List { json } => api::list(json),
+        ApiCmd::Show { nombre, json } => api::show(&nombre, json),
+        ApiCmd::Code {
+            nombre,
+            client,
+            write,
+        } => api::code(&nombre, client.as_deref(), write),
+        ApiCmd::Start {
+            nombre,
+            host,
+            port,
+            lan,
+            demo,
+        } => {
+            let host = if lan {
+                Some("0.0.0.0".into())
+            } else {
+                host
+            };
+            api::start_named(nombre.as_deref(), host.as_deref(), port, demo)
+        }
+        ApiCmd::Rotate { nombre } => api::rotate(&nombre),
+        ApiCmd::Rm { nombre } => api::rm(&nombre),
+    };
+    if let Err(err) = result {
+        fail(err);
+    }
+}
+
+fn ensure_api(
+    rec: &reco_core::Recommendation,
+    provider: &str,
+    lan: bool,
+    port: u16,
+) -> reco_core::ApiEndpoint {
+    let mut reg = reco_core::ApiRegistry::load();
+    if let Some(existing) = reg
+        .endpoints
+        .iter()
+        .find(|e| e.repo_id == rec.repo_id)
+        .cloned()
+    {
+        return existing;
+    }
+    let name = rec.repo_id.rsplit('/').next().unwrap_or(&rec.repo_id);
+    let quant = rec.quant.label();
+    match reg.create(
+        name,
+        &rec.repo_id,
+        &rec.filename,
+        &quant,
+        provider,
+        lan,
+        Some(port),
+    ) {
+        Ok(ep) => {
+            let _ = reco_core::write_client_kit(&ep);
+            ep
+        }
+        Err(_) => reco_core::ApiEndpoint {
+            slug: reco_core::slugify(name),
+            name: name.into(),
+            repo_id: rec.repo_id.clone(),
+            filename: rec.filename.clone(),
+            quant: rec.quant.label(),
+            api_key: reco_core::apis::generate_api_key("default"),
+            host: if lan {
+                "0.0.0.0".into()
+            } else {
+                "127.0.0.1".into()
+            },
+            port,
+            provider: provider.into(),
+            lan,
+            created_at: 0,
+        },
     }
 }
 

@@ -110,9 +110,30 @@ reco                         # estado de tu máquina y siguientes pasos
 reco doctor                  # llama.cpp, claves, caché
 reco ai                      # catálogo TUI · enter descarga · / busca
 reco run Qwen2.5-7B          # descarga + Prueba
-reco serve Llama-3.1-8B      # API local para Continue / Open WebUI
-reco config set openai-key sk-...
+reco api create Qwen2.5-7B --name mi-app
+reco api start               # esta máquina sirve las APIs
+reco api code mi-app --client python
 ```
+
+## Your machine is the server
+
+`reco api create` generates a **named API**: unique key, OpenAI-compatible URL, and a client kit (Python, JS, curl, Continue, Cursor, Open WebUI, LangChain, OpenAPI, `.env`).
+
+```bash
+reco api create Llama-3.1-8B --name continue --lan
+reco api start                 # hub: todas las claves en un puerto
+reco api code continue --client continue
+```
+
+Another app only needs:
+
+- **Base URL** `http://<esta-máquina>:11434/v1`
+- **API key** `sk-reco-<nombre>-…` (scoped to that model)
+- **Model** the Hugging Face repo id (or the API slug)
+
+`--lan` binds `0.0.0.0` and prints the LAN IP so a phone or another PC can use it. Each key only unlocks its model. `reco api rotate <nombre>` issues a new key.
+
+Kits land in `~/.config/reco/clients/<slug>/`.
 
 Put `llama-cli` on `PATH` (or `reco config set llama-cli /ruta`) after installing [llama.cpp](https://github.com/ggml-org/llama.cpp). Cloud keys also read `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`.
 
@@ -128,7 +149,8 @@ CLI copy is Spanish; crate names and this README are English.
 | `reco ai` | Ranked catalog (TUI). `--list` / `--json` to skip the UI |
 | `reco run <modelo>` | Download the GGUF that fits, then open Prueba |
 | `reco chat <modelo>` | Reopen the last conversation |
-| `reco serve <modelo>` | OpenAI-compatible API on `127.0.0.1:11434` |
+| `reco api` | Generate / list / start / code custom APIs for other apps |
+| `reco serve` | Hub of all APIs, or `reco serve <modelo>` for one |
 | `reco models` | List (or `rm`) cached GGUFs |
 | `reco doctor` | llama-cli, BYOK, catalog cache |
 | `reco config` | `show` / `set` / `get` / `unset` |

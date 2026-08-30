@@ -24,6 +24,14 @@ pub fn config_path() -> PathBuf {
     config_dir().join("config.json")
 }
 
+pub fn apis_path() -> PathBuf {
+    config_dir().join("apis.json")
+}
+
+pub fn clients_dir() -> PathBuf {
+    config_dir().join("clients")
+}
+
 pub fn db_path() -> PathBuf {
     data_dir().join("reco.db")
 }

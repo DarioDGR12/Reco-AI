@@ -942,6 +942,7 @@ name = "reco-core"
 version = "0.2.0"
 dependencies = [
  "dirs",
+ "getrandom",
  "nvml-wrapper",
  "rusqlite",
  "serde",
