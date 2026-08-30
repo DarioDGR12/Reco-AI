@@ -25,3 +25,6 @@ thiserror = "2.0"
 ureq = { version = "2.12", features = ["json"] }
 crossterm = "0.28"
 ratatui = "0.29"
+rusqlite = { version = "0.32", features = ["bundled"] }
+tiny_http = "0.12"
+getrandom = "0.2"

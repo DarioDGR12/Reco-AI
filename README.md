@@ -13,7 +13,7 @@
   <img alt="Windows" src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" />
   <img alt="macOS" src="https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white" />
   <img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black" />
-  <img alt="Status" src="https://img.shields.io/badge/status-v0.1%20TUI%20%2B%20download-89dceb?style=flat-square" />
+  <img alt="Status" src="https://img.shields.io/badge/status-v0.1%20Prueba%20%2B%20serve%20demo-89dceb?style=flat-square" />
 </p>
 
 <p align="center">
@@ -58,12 +58,12 @@ These are product previews, not shipping UI yet.
       <sub><b>TUI catalog</b> — Ratatui, flechas + <code>/</code> buscar · <i>listo</i></sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/assets/preview-prueba.gif" alt="Prueba chat preview" /><br />
-      <sub><b>Prueba</b> — native Tauri chat + SQLite history · <i>próximamente</i></sub>
+      <img src="docs/assets/preview-prueba.gif" alt="Prueba chat" /><br />
+      <sub><b>Prueba</b> — chat TUI + SQLite · Tauri window <i>next</i></sub>
     </td>
     <td align="center" width="33%">
-      <img src="docs/assets/preview-serve.gif" alt="reco serve preview" /><br />
-      <sub><b>reco serve</b> — local API + <code>sk-...</code> key · <i>próximamente</i></sub>
+      <img src="docs/assets/preview-serve.gif" alt="reco serve" /><br />
+      <sub><b>reco serve</b> — API local + <code>sk-reco-...</code> · <i>listo (demo)</i></sub>
     </td>
   </tr>
 </table>
@@ -76,10 +76,10 @@ These are product previews, not shipping UI yet.
 | --- | --- |
 | **Hardware-aware picks** | CPU, RAM, NVIDIA (NVML / `nvidia-smi`), Linux DRM, Apple Metal. Score: 40% fit, 20% speed, 20% quality, 20% popularity. |
 | **GGUF catalog** | Live Hugging Face index (`filter=gguf`), 12h cache, offline seed. |
-| **One command** | `reco run <model>` picks the quant and downloads the GGUF. **Prueba** (Tauri chat) is next. |
-| **Prueba** | Native desktop chat (Tauri, not Electron). History in SQLite. *Next.* |
+| **One command** | `reco run` downloads the GGUF and opens **Prueba**. |
+| **Prueba** | Terminal chat + SQLite history. Tauri window and llama.cpp tokens are next. |
+| **`reco serve`** | Local OpenAI-style API + generated `sk-reco-...` key (EchoEngine until llama.cpp). |
 | **BYOK** | Your OpenAI / Anthropic / … keys next to local GGUF. *Next.* |
-| **`reco serve`** | Turn this PC into a local OpenAI-style server with a generated `sk-...` key. *Next.* |
 
 ---
 
@@ -87,11 +87,11 @@ These are product previews, not shipping UI yet.
 
 | | Reco AI | Ollama | Hugging Face |
 | --- | --- | --- | --- |
-| Run a model locally | yes (llama.cpp, *next*) | excellent | DIY |
-| Catalog size | full GGUF index (*next*) | curated subset | huge |
+| Run a model locally | download + chat shell (llama.cpp *next*) | excellent | DIY |
+| Catalog size | HF GGUF index (top download slice) | curated subset | huge |
 | “Will this fit my 8 GB 4060?” | measured hardware + 40/20/20/20 | you guess the tag | you guess the quant |
-| Native chat + history | Prueba (Tauri) (*next*) | separate apps | browser / spaces |
-| Local OpenAI-style API | `reco serve` (*next*) | yes | no |
+| Native chat + history | Prueba TUI + SQLite (Tauri *next*) | separate apps | browser / spaces |
+| Local OpenAI-style API | `reco serve` (demo engine) | yes | no |
 
 Reco is the missing middle: **HF’s catalog, Ollama’s “just run it”, plus a real hardware check**.
 
@@ -111,10 +111,11 @@ cargo install --path crates/reco-cli
 reco ai                      # TUI: ↑↓, enter descarga, / busca
 reco ai --list               # same ranking, plain text
 reco ai --json
-reco run Llama-3.1-8B        # resolve + download the fitting quant
-reco run org/repo --dry-run  # URL + destination only
+reco run Llama-3.1-8B --demo # Prueba (historial SQLite, motor demo)
+reco run org/repo --dry-run
+reco chat Llama-3.1-8B --demo --offline --fixture rtx4060
+reco serve Llama-3.1-8B --demo --offline --fixture rtx4060
 reco hw --json
-reco serve <modelo>          # local server + API key     (not yet)
 ```
 
 User-facing CLI text is in Spanish; crate names and this README are in English.
@@ -129,10 +130,11 @@ User-facing CLI text is in Spanish; crate names and this README are in English.
 - [x] Weighted recommendations (40 / 20 / 20 / 20)
 - [x] Ratatui catalog (`reco ai`, `--list` to skip)
 - [x] `reco run` — resolve spec + download GGUF to the local cache
-- [ ] llama.cpp + Tauri **Prueba**
-- [ ] Chat history (SQLite)
-- [ ] BYOK
-- [ ] `reco serve`
+- [x] **Prueba** TUI chat + SQLite history (`reco chat` to reopen)
+- [x] `reco serve` — `/v1/chat/completions` + `sk-reco-...` (EchoEngine)
+- [ ] llama.cpp token generation (swap into `InferEngine`)
+- [ ] Tauri desktop window for Prueba
+- [ ] BYOK (OpenAI / Anthropic / …)
 - [ ] AppImage / `.deb` / `.rpm` / AUR
 
 GPU detection never requires the CUDA toolkit. NVIDIA uses NVML at runtime or `nvidia-smi`. No GPU → CPU backend, no crash.
@@ -141,16 +143,17 @@ GPU detection never requires the CUDA toolkit. NVIDIA uses NVML at runtime or `n
 
 ## Roadmap
 
-1. ~~Catalog, recommender, TUI, GGUF download~~  
-2. **`reco run` + Prueba** — llama.cpp inference and the Tauri chat window  
-3. **`reco serve`** — local HTTP API + `sk-...`  
+1. ~~Catalog, recommender, TUI, download, Prueba TUI, serve demo~~  
+2. **llama.cpp** — real tokens through the existing `InferEngine`  
+3. **Tauri Prueba** — native window over the same SQLite store  
+4. **BYOK + packaging**  
 
 ---
 
 ## Crates
 
 ```
-crates/reco-core      hardware, GGUF types, scoring
+crates/reco-core      hardware, GGUF types, scoring, chat store, InferEngine
 crates/reco-catalog   Hugging Face client + cache + seed
 crates/reco-cli       `reco` binary (clap + Ratatui)
 

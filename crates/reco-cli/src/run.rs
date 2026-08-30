@@ -1,10 +1,16 @@
 use std::io::{self, Write};
+use std::path::PathBuf;
 
 use owo_colors::OwoColorize;
-use reco_catalog::{download_gguf, huggingface_resolve_url, is_downloaded, local_model_path};
+use reco_catalog::{
+    cache_root, download_gguf, huggingface_resolve_url, is_downloaded, local_model_path,
+};
+use reco_core::store::ChatStore;
 use reco_core::{format_gib, Recommendation};
 
-pub fn download_recommendation(rec: &Recommendation, dry_run: bool) -> Result<(), String> {
+use crate::prueba;
+
+pub fn download_recommendation(rec: &Recommendation, dry_run: bool) -> Result<PathBuf, String> {
     let url = huggingface_resolve_url(&rec.repo_id, &rec.filename);
     let dest = local_model_path(&rec.repo_id, &rec.filename);
 
@@ -20,13 +26,12 @@ pub fn download_recommendation(rec: &Recommendation, dry_run: bool) -> Result<()
 
     if dry_run {
         println!("  {}", "dry-run: no se descarga nada.".dimmed());
-        return Ok(());
+        return Ok(dest);
     }
 
     if is_downloaded(&rec.repo_id, &rec.filename) {
         println!("  {}", "ya está en el caché local.".green());
-        print_next_steps(&dest);
-        return Ok(());
+        return Ok(dest);
     }
 
     print!("  descargando…");
@@ -43,15 +48,19 @@ pub fn download_recommendation(rec: &Recommendation, dry_run: bool) -> Result<()
     .map_err(|err| err.to_string())?;
     eprintln!();
     println!("  {} {}", "listo".green(), path.display());
-    print_next_steps(&path);
-    Ok(())
+    Ok(path)
 }
 
-fn print_next_steps(path: &std::path::Path) {
-    println!();
-    println!("{}", "Prueba (Tauri + llama.cpp) todavía no abre la ventana.".dimmed());
-    println!(
-        "  El GGUF ya está en disco. Siguiente: chat nativo sobre {}",
-        path.file_name().and_then(|n| n.to_str()).unwrap_or("este archivo")
-    );
+pub fn open_prueba(rec: &Recommendation, demo: bool) -> Result<(), String> {
+    let db = cache_root().join("reco.db");
+    let store = ChatStore::open(&db).map_err(|err| err.to_string())?;
+    if demo {
+        println!(
+            "  {} historial en {}",
+            "Prueba".bold(),
+            db.display()
+        );
+        println!("  {}", "modo demo: EchoEngine (sin llama.cpp)".dimmed());
+    }
+    prueba::run(&store, rec, demo).map_err(|err| err.to_string())
 }
