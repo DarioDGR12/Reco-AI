@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- **One-command install** — `scripts/install.sh` (and `scripts/install.ps1` on Windows) installs Rust if needed, then `reco`, `llama-cli`, and the Tauri window when possible. Flags: `--no-desktop`, `--no-llama`, `--cli`.
+- **`reco setup`** — first-run: llama.cpp, desktop window, keys.
+- **Desktop is the default chat** — `reco run` / `reco chat` / `reco ai` open Prueba; `--tui` stays in the terminal.
+- Product polish: one-command install as the documented path; packaging reserved for distro packages.
+
 ## 0.2.1
 
 - **`reco api`** — generate named APIs (unique key, port, client kit) so other apps use models on this machine.

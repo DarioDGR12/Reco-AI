@@ -1,5 +1,7 @@
 # Packaging Reco AI
 
+Humans should install with [`scripts/install.sh`](../scripts/install.sh) (see the [Quickstart](../README.md#quickstart)); this directory is for distro packages.
+
 Linux packages wrap the `reco` CLI (`cargo build --release -p reco-cli`).
 
 | Format | How |
@@ -11,4 +13,4 @@ Linux packages wrap the `reco` CLI (`cargo build --release -p reco-cli`).
 
 The Tauri window (`crates/reco-desktop`) can also emit `.deb` / `.rpm` / AppImage via `npm run tauri build` when WebKitGTK is installed.
 
-macOS / Windows installers are `cargo install --path crates/reco-cli` today; Tauri bundle targets can be added later.
+macOS / Windows: use the [Quickstart](../README.md#quickstart) installer. Tauri bundle targets can be added later.
