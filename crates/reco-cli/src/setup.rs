@@ -52,7 +52,8 @@ impl From<SetupShell> for clap_complete::Shell {
 pub fn write_completions(shell: SetupShell) -> Result<(), String> {
     if !io::stdout().is_terminal() {
         let mut cmd = Cli::command();
-        generate(shell.into(), &mut cmd, "reco", &mut io::stdout());
+        let generator: clap_complete::Shell = shell.into();
+        generate(generator, &mut cmd, "reco", &mut io::stdout());
         return Ok(());
     }
 
@@ -65,7 +66,8 @@ pub fn write_completions(shell: SetupShell) -> Result<(), String> {
     match fs::File::create(&path) {
         Ok(mut file) => {
             let mut cmd = Cli::command();
-            generate(shell.into(), &mut cmd, "reco", &mut file);
+            let generator: clap_complete::Shell = shell.into();
+            generate(generator, &mut cmd, "reco", &mut file);
             file.flush()
                 .map_err(|err| format!("no pude escribir {}: {err}", path.display()))?;
             println!("completados {} → {}", shell.name(), path.display());

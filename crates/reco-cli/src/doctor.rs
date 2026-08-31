@@ -237,10 +237,8 @@ mod tests {
             assert!(items.iter().any(|i| i.name == "llama-cli"));
             assert!(items.iter().any(|i| i.name == "ventana"));
         }
-        let setup_names: Vec<_> = collect_setup(&profile)
-            .iter()
-            .map(|i| i.name.as_str())
-            .collect();
+        let setup_items = collect_setup(&profile);
+        let setup_names: Vec<_> = setup_items.iter().map(|i| i.name.as_str()).collect();
         assert_eq!(
             setup_names,
             ["hardware", "llama-cli", "ventana", "config", "modelos"]
