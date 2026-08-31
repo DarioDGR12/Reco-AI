@@ -7,7 +7,7 @@ use reco_core::{
     Recommendation,
 };
 
-use crate::doctor::DoctorItem;
+use crate::doctor::{DoctorItem, INSTALL_ONE_LINER};
 
 pub fn print_ai(
     profile: &HardwareProfile,
@@ -169,21 +169,29 @@ pub fn print_home(
     println!();
     let cfg = RecoConfig::load();
     let llama = LlamaCliEngine::find_binary(cfg.llama.cli.as_deref());
+    let has_byok = !cfg.byok.openai_key.is_empty() || !cfg.byok.anthropic_key.is_empty();
+    let needs_install = llama.is_none() && !has_byok;
     let bytes: u64 = downloaded.iter().map(|m| m.size_bytes).sum();
+
+    if needs_install {
+        println!("{}", "Falta llama-cli".bold());
+        println!("  {}", INSTALL_ONE_LINER.cyan());
+        println!();
+    }
 
     println!("{}", "Estado".bold());
     println!(
         "  {}  {}",
         "motor   ".dimmed(),
         match &llama {
-            Some(path) => format!("llama-cli · {}", path.display()).to_string(),
+            Some(path) => format!("llama-cli · {}", path.display()),
             None if !cfg.byok.openai_key.is_empty() => {
                 format!("OpenAI · {}", cfg.byok.openai_model)
             }
             None if !cfg.byok.anthropic_key.is_empty() => {
                 format!("Anthropic · {}", cfg.byok.anthropic_model)
             }
-            None => "echo (instala llama.cpp o configura una clave)".to_string(),
+            None => "echo · reco setup".to_string(),
         }
     );
     println!(
@@ -237,31 +245,37 @@ pub fn print_home(
     }
 
     println!("{}", "Siguiente".bold());
-    println!("  {}   catálogo que cabe en esta máquina", "reco ai".cyan());
+    println!(
+        "  {}  checklist (llama-cli, ventana, modelos)",
+        "reco setup".cyan()
+    );
     println!(
         "  {}  ventana Prueba (catálogo + chat)",
         "reco desktop".cyan()
     );
+    println!("  {}  catálogo que cabe en esta máquina", "reco ai".cyan());
     println!(
         "  {}  descarga y abre la ventana",
         "reco run <modelo>".cyan()
     );
     println!("  {}  llama.cpp, claves y caché", "reco doctor".cyan());
-    println!(
-        "  {}  API para otra app (esta máquina sirve)",
-        "reco api create <modelo> --name mi-app".cyan()
-    );
-    if llama.is_none() && cfg.byok.openai_key.is_empty() {
-        println!(
-            "  {}  para tokens reales",
-            "reco config set openai-key sk-...".cyan()
-        );
-    }
 }
 
 pub fn print_doctor(items: &[DoctorItem], json: bool) {
     if json {
-        match serde_json::to_string_pretty(items) {
+        print_json(items);
+        return;
+    }
+    print_checklist("Reco doctor", items);
+}
+
+pub fn print_setup(items: &[DoctorItem], json: bool) {
+    if json {
+        let payload = serde_json::json!({
+            "items": items,
+            "install": INSTALL_ONE_LINER,
+        });
+        match serde_json::to_string_pretty(&payload) {
             Ok(text) => println!("{text}"),
             Err(err) => {
                 eprintln!("No se pudo serializar: {err}");
@@ -270,7 +284,31 @@ pub fn print_doctor(items: &[DoctorItem], json: bool) {
         }
         return;
     }
-    println!("{}", "Reco doctor".bold());
+    print_checklist("Reco setup", items);
+    let llama_missing = items
+        .iter()
+        .any(|item| item.name == "llama-cli" && item.ok == Some(false));
+    println!();
+    println!("{}", "Siguiente".bold());
+    if llama_missing {
+        println!("  {}", INSTALL_ONE_LINER.cyan());
+    }
+    println!("  {}  ventana Prueba", "reco desktop".cyan());
+    println!("  {}  catálogo", "reco ai".cyan());
+}
+
+fn print_json(items: &[DoctorItem]) {
+    match serde_json::to_string_pretty(items) {
+        Ok(text) => println!("{text}"),
+        Err(err) => {
+            eprintln!("No se pudo serializar: {err}");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn print_checklist(title: &str, items: &[DoctorItem]) {
+    println!("{}", title.bold());
     println!();
     for item in items {
         let mark = match item.ok {
