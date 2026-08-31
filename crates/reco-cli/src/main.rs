@@ -4,6 +4,7 @@ mod prueba;
 mod render;
 mod run;
 mod server;
+mod setup;
 mod tui;
 
 use std::collections::HashSet;
@@ -19,15 +20,18 @@ use reco_core::store::ChatStore;
 use reco_core::{
     config_path, detect, recommend, resolve_spec, suggest_repos, RecoConfig, ResolveError,
 };
-use render::{print_ai, print_config, print_doctor, print_home, print_hw, print_models};
+use render::{
+    print_ai, print_config, print_doctor, print_home, print_hw, print_models, print_setup,
+};
+use setup::SetupShell;
 
 #[derive(Parser)]
 #[command(
     name = "reco",
     version,
-    about = "Reco AI — elige y corre el modelo que cabe en tu máquina",
-    long_about = "Reco lee tu hardware, indexa GGUF en Hugging Face y te deja chatear o servir el modelo en un comando.\n\nSin argumentos muestra el estado de esta máquina. Elegir un modelo abre la ventana Tauri (Prueba); usa --tui si quieres el chat en la terminal.",
-    after_help = "Ejemplos:\n  reco                      estado y siguientes pasos\n  reco desktop              ventana Prueba (catálogo + chat)\n  reco ai                   catálogo · enter abre la ventana\n  reco run Qwen2.5-7B       descarga y abre Prueba\n  reco api create Qwen2.5-7B --name mi-app"
+    about = "Reco AI — elige y corre el modelo que cabe en tu máquina\nInstalar: curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash",
+    long_about = "Reco lee tu hardware, indexa GGUF en Hugging Face y te deja chatear o servir el modelo en un comando.\n\nSin argumentos muestra el estado de esta máquina. Elegir un modelo abre la ventana Tauri (Prueba); usa --tui si quieres el chat en la terminal.\n\nInstalar: curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash",
+    after_help = "Instalar:\n  curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash\n\nEjemplos:\n  reco                      estado y siguientes pasos\n  reco setup                checklist (llama-cli, ventana, modelos)\n  reco desktop              ventana Prueba (catálogo + chat)\n  reco ai                   catálogo · enter abre la ventana\n  reco run Qwen2.5-7B       descarga y abre Prueba\n  reco api create Qwen2.5-7B --name mi-app"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -144,6 +148,16 @@ enum Commands {
     Doctor {
         #[arg(long)]
         json: bool,
+        #[arg(long, hide = true)]
+        fixture: Option<String>,
+    },
+    /// Checklist: hardware, llama-cli, ventana, modelos
+    Setup {
+        #[arg(long, conflicts_with = "completions")]
+        json: bool,
+        /// Escribe completados a una ruta del usuario, o imprime la línea eval
+        #[arg(long, value_name = "SHELL")]
+        completions: Option<SetupShell>,
         #[arg(long, hide = true)]
         fixture: Option<String>,
     },
@@ -374,6 +388,20 @@ fn main() {
         Some(Commands::Doctor { json, fixture }) => {
             let profile = resolve_profile(fixture.as_deref());
             print_doctor(&doctor::collect(&profile), json);
+        }
+        Some(Commands::Setup {
+            json,
+            completions,
+            fixture,
+        }) => {
+            if let Some(shell) = completions {
+                if let Err(err) = setup::write_completions(shell) {
+                    fail(err);
+                }
+            } else {
+                let profile = resolve_profile(fixture.as_deref());
+                print_setup(&doctor::collect_setup(&profile), json);
+            }
         }
         Some(Commands::Models { action, json }) => match action {
             None => print_models(&list_downloaded(), json),
