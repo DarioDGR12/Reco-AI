@@ -6,7 +6,7 @@ use std::time::Duration;
 use crate::cache::cache_root;
 use crate::CatalogError;
 
-const USER_AGENT: &str = "Reco-AI/0.2 (+https://github.com/DarioDGR12/Reco-AI)";
+const USER_AGENT: &str = "Reco-AI/0.3 (+https://github.com/DarioDGR12/Reco-AI)";
 const CHUNK: usize = 64 * 1024;
 
 #[derive(Debug, Clone)]

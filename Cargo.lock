@@ -910,7 +910,7 @@ dependencies = [
 
 [[package]]
 name = "reco-catalog"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dirs",
  "reco-core",
@@ -922,7 +922,7 @@ dependencies = [
 
 [[package]]
 name = "reco-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap",
  "clap_complete",
@@ -939,7 +939,7 @@ dependencies = [
 
 [[package]]
 name = "reco-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dirs",
  "getrandom",

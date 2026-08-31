@@ -308,7 +308,7 @@ pub fn openapi_json(ep: &ApiEndpoint, base: &str) -> String {
         "openapi": "3.1.0",
         "info": {
             "title": format!("Reco · {}", ep.name),
-            "version": "0.2.0",
+            "version": "0.3.0",
             "description": format!(
                 "API OpenAI-compatible servida por Reco en esta máquina. Modelo {} ({})",
                 ep.repo_id, ep.quant
