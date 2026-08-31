@@ -3,6 +3,7 @@
 ## 0.3.1
 
 - **`reco` is a command menu** — arrows move, enter runs `reco ai`, `reco models`, `reco desktop`, `reco chat`, `reco run`, `reco serve`, `reco doctor`, `reco setup`, `reco hw`, `reco config`. `q` quits. `--list` prints the old text home. `reco menu` is the same screen.
+- **Install fix** — `curl | bash` no longer concatenates log lines into the cargo `--path` (that broke `reco-cli` on Pop!_OS). CLI installs with `cargo install --git`.
 
 ## 0.3.0
 

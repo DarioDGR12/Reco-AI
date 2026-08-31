@@ -14,6 +14,7 @@ SRC_DIR="${RECO_SRC_DIR:-$HOME/.cache/reco/src}"
 WANT_LLAMA=1
 WANT_DESKTOP=1
 CLI_ONLY=0
+SELF_TEST=0
 
 usage() {
   cat <<'EOF'
@@ -40,6 +41,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-llama) WANT_LLAMA=0 ;;
     --no-desktop) WANT_DESKTOP=0 ;;
+    --self-test) SELF_TEST=1 ;;
     -h|--help)
       usage
       exit 0
@@ -53,8 +55,9 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-log() { printf '\n\033[1m==>\033[0m %s\n' "$*"; }
-ok() { printf '    \033[32m✓\033[0m %s\n' "$*"; }
+# Logs always go to stderr so `ROOT="$(ensure_source)"` never captures them.
+log() { printf '\n\033[1m==>\033[0m %s\n' "$*" >&2; }
+ok() { printf '    \033[32m✓\033[0m %s\n' "$*" >&2; }
 warn() { printf '    \033[33m!\033[0m %s\n' "$*" >&2; }
 die() { printf '    \033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
 
@@ -104,45 +107,62 @@ ensure_git() {
   have git || die "necesito git (sudo apt install git / brew install git)"
 }
 
-repo_root() {
+# Real checkout only. `curl | bash` sets BASH_SOURCE to /dev/fd/… — ignore that.
+local_checkout() {
+  local script="${BASH_SOURCE[0]:-}"
+  case "$script" in
+    ""|/dev/*|/proc/*) return 1 ;;
+  esac
+  [[ -f "$script" ]] || return 1
   local here
-  here="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-  if [[ -f "$here/crates/reco-cli/Cargo.toml" ]]; then
+  here="$(cd "$(dirname "$script")/.." && pwd)"
+  [[ -f "$here/crates/reco-cli/Cargo.toml" ]] || return 1
+  printf '%s' "$here"
+}
+
+# Path on stdout only. All chatter is stderr.
+ensure_source() {
+  local here
+  if here="$(local_checkout)"; then
     printf '%s' "$here"
     return 0
   fi
-  return 1
-}
-
-ensure_source() {
-  if root="$(repo_root)"; then
-    printf '%s' "$root"
-    return
-  fi
   ensure_git
-  log "Clonando Reco AI…"
+  log "Preparando fuente en $SRC_DIR…"
   mkdir -p "$(dirname "$SRC_DIR")"
   if [[ -d "$SRC_DIR/.git" ]]; then
-    git -C "$SRC_DIR" fetch --depth 1 origin main
-    git -C "$SRC_DIR" checkout -q FETCH_HEAD || git -C "$SRC_DIR" pull --ff-only
+    git -C "$SRC_DIR" fetch --depth 1 origin main >&2
+    git -C "$SRC_DIR" checkout -q -B main FETCH_HEAD >&2 \
+      || git -C "$SRC_DIR" reset --hard origin/main >&2
   else
     rm -rf "$SRC_DIR"
-    git clone --depth 1 --branch main "$REPO_URL" "$SRC_DIR"
+    git clone --depth 1 --branch main "$REPO_URL" "$SRC_DIR" >&2
   fi
+  [[ -f "$SRC_DIR/crates/reco-cli/Cargo.toml" ]] \
+    || die "el clone en $SRC_DIR está incompleto. Borra esa carpeta y reintenta."
   printf '%s' "$SRC_DIR"
 }
 
 install_reco() {
-  local root="$1"
+  local root="${1:-}"
   log "Instalando reco…"
-  cargo install --path "$root/crates/reco-cli" --locked --force --root "$HOME/.cargo" \
-    || cargo install --path "$root/crates/reco-cli" --force --root "$HOME/.cargo"
-  local reco_bin="$HOME/.cargo/bin/reco"
-  if [[ -x "$reco_bin" ]]; then
-    ln -sfn "$reco_bin" "$BIN_DIR/reco"
+  ensure_path
+  if [[ -n "$root" && -f "$root/crates/reco-cli/Cargo.toml" ]]; then
+    cargo install --path "$root/crates/reco-cli" --locked --force \
+      || cargo install --path "$root/crates/reco-cli" --force
+  else
+    cargo install --git "$REPO_URL" --path crates/reco-cli --locked --force \
+      || cargo install --git "$REPO_URL" --path crates/reco-cli --force
   fi
-  have reco || die "reco no quedó en PATH. Añade $HOME/.cargo/bin y $BIN_DIR"
-  ok "reco $(reco --version 2>/dev/null | head -1 || echo listo) → $reco_bin"
+  local reco_bin="$HOME/.cargo/bin/reco"
+  [[ -x "$reco_bin" ]] || die "cargo install no dejó $reco_bin"
+  mkdir -p "$BIN_DIR"
+  ln -sfn "$reco_bin" "$BIN_DIR/reco"
+  ensure_path
+  if ! have reco; then
+    die "reco no está en PATH. Añade $HOME/.cargo/bin y $BIN_DIR, abre otra terminal, y vuelve a probar."
+  fi
+  ok "reco $($reco_bin --version 2>/dev/null | head -1) → $reco_bin"
 }
 
 llama_asset() {
@@ -324,13 +344,39 @@ finish() {
   echo "    reco desktop"
 }
 
+if [[ "$SELF_TEST" == 1 ]]; then
+  out="$(local_checkout || true)"
+  if [[ "$out" == *$'\n'* ]]; then
+    die "local_checkout no debe imprimir logs (salió con salto de línea)"
+  fi
+  if [[ -n "$out" && ! -f "$out/crates/reco-cli/Cargo.toml" ]]; then
+    die "local_checkout devolvió una ruta inválida: $out"
+  fi
+  captured="$(
+    log "ping-log"
+    ok "ping-ok"
+    printf 'ONLYPATH'
+  )"
+  if [[ "$captured" != "ONLYPATH" ]]; then
+    die "log/ok se colaron en stdout: [$captured]"
+  fi
+  ok "self-test del instalador"
+  exit 0
+fi
+
 ensure_path
 log "Reco AI — instalación completa"
 ensure_rust
-ROOT="$(ensure_source)"
-ok "fuente $ROOT"
+ROOT=""
+if ROOT="$(local_checkout)"; then
+  ok "fuente local $ROOT"
+fi
 install_reco "$ROOT"
 install_llama
-install_desktop "$ROOT"
+if [[ "$WANT_DESKTOP" == 1 ]]; then
+  ROOT="$(ensure_source)"
+  ok "fuente $ROOT"
+  install_desktop "$ROOT"
+fi
 install_completions
 finish
