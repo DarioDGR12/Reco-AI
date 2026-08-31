@@ -79,7 +79,7 @@ reco api code mi-app --client python
 
 Chat opens the **Prueba** window when it is installed. `--tui` stays in the terminal.
 
-Distro packages (`.deb`, `.rpm`, AppImage, AUR): [packaging/README.md](packaging/README.md). From source: `cargo install --git https://github.com/DarioDGR12/Reco-AI --path crates/reco-cli`.
+Distro packages (`.deb`, `.rpm`, AppImage, AUR): [packaging/README.md](packaging/README.md). From source: `cargo install --git https://github.com/DarioDGR12/Reco-AI --branch main reco-cli`.
 
 ---
 

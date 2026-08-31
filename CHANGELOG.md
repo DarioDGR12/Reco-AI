@@ -3,7 +3,7 @@
 ## 0.3.1
 
 - **`reco` is a command menu** — arrows move, enter runs `reco ai`, `reco models`, `reco desktop`, `reco chat`, `reco run`, `reco serve`, `reco doctor`, `reco setup`, `reco hw`, `reco config`. `q` quits. `--list` prints the old text home. `reco menu` is the same screen.
-- **Installer rewritten** — linear script, always `cargo install --git` with a hardcoded GitHub URL. Default is `reco` + `llama-cli`; `--desktop` is opt-in. Logs never land in a cargo `--path` (that broke Pop!_OS).
+- **Installer rewritten** — linear script, always `cargo install --git … reco-cli` (package name, not `--path`; cargo 1.98 rejects `--git` + `--path`). Default is `reco` + `llama-cli`; `--desktop` is opt-in.
 
 ## 0.3.0
 

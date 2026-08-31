@@ -81,10 +81,10 @@ have git || die "necesito git. En Pop!_OS / Ubuntu: sudo apt install git"
 have curl || die "necesito curl"
 
 say "Instalando reco (cargo install --git)…"
-# Always cargo install --git with the hardcoded URL. Do not capture function
-# stdout into a path variable — that glued log lines into --path on Pop!_OS.
-cargo install --git "$REPO" --path crates/reco-cli --locked --force \
-  || cargo install --git "$REPO" --path crates/reco-cli --force
+# cargo 1.8x+ rejects combining git URL + local path flags.
+# Select the workspace package by name. The binary is reco.
+cargo install --git "$REPO" --branch main --locked --force reco-cli \
+  || cargo install --git "$REPO" --branch main --force reco-cli
 
 [[ -x "$CARGO_BIN/reco" ]] || die "cargo no instaló $CARGO_BIN/reco"
 ln -sfn "$CARGO_BIN/reco" "$BIN_DIR/reco"

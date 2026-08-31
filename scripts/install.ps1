@@ -40,9 +40,9 @@ function Ensure-Rust {
 
 function Install-Reco {
     Write-Step "Instalando reco (cargo install --git)…"
-    cargo install --git $RepoUrl --path crates/reco-cli --locked --force
+    cargo install --git $RepoUrl --branch main --locked --force reco-cli
     if (-not $?) {
-        cargo install --git $RepoUrl --path crates/reco-cli --force
+        cargo install --git $RepoUrl --branch main --force reco-cli
     }
     $reco = Join-Path $env:USERPROFILE ".cargo\bin\reco.exe"
     if (Test-Path $reco) {

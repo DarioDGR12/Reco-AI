@@ -23,3 +23,4 @@ jobs:
         run: |
           bash scripts/install.sh --self-test
           ! grep -E 'ROOT="\$\(|ensure_source|CARGO_INSTALL_HINT' scripts/install.sh
+          ! grep -E -- '--git .*\-\-path|--path .*\-\-git' scripts/install.sh scripts/install.ps1
