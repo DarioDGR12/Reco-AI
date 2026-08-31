@@ -143,20 +143,17 @@ function renderCard(item, { allowDemo = true } = {}) {
   const est = item.size_estimated ? " est." : "";
   const score = Math.max(0, Math.min(100, item.total || 0));
   const showScore = Boolean(item.total);
+  card.title = item.filename || "";
   card.innerHTML = `
     <div class="repo">${escapeHtml(item.repo_id)}</div>
     <div class="meta">${escapeHtml(item.quant)} · ${escapeHtml(item.size)}${est}${params}</div>
-    <div class="file">${escapeHtml(item.filename || "")}</div>
     <div class="why">${escapeHtml(item.why || "")}</div>
     ${
       showScore
         ? `<div class="score-row"><div class="score"><i style="width:${Math.max(8, score)}%"></i></div><span class="score-n">${formatScore(item.total)}</span></div>`
         : ""
     }
-    <div class="pills">
-      ${item.downloaded ? '<span class="pill ok">en disco</span>' : ""}
-      ${showScore ? `<span class="pill">score ${formatScore(item.total)}</span>` : ""}
-    </div>
+    ${item.downloaded ? '<div class="pills"><span class="pill ok">en disco</span></div>' : ""}
     <div class="card-actions">
       <button type="button" class="primary" data-act="open">
         ${item.downloaded ? "Abrir chat" : "Descargar y abrir"}
