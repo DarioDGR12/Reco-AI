@@ -4,14 +4,14 @@
 param(
     [switch]$Cli,
     [switch]$NoLlama,
-    [switch]$NoDesktop
+    [switch]$Desktop
 )
 
 $ErrorActionPreference = "Stop"
-$RepoUrl = if ($env:RECO_REPO_URL) { $env:RECO_REPO_URL } else { "https://github.com/DarioDGR12/Reco-AI" }
-$BinDir = if ($env:RECO_BIN_DIR) { $env:RECO_BIN_DIR } else { Join-Path $env:LOCALAPPDATA "Reco\bin" }
+$RepoUrl = "https://github.com/DarioDGR12/Reco-AI"
+$BinDir = Join-Path $env:LOCALAPPDATA "Reco\bin"
 $WantLlama = -not ($Cli -or $NoLlama)
-$WantDesktop = -not ($Cli -or $NoDesktop)
+$WantDesktop = $Desktop -and -not $Cli
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor White }
 function Write-Ok($msg) { Write-Host "    ✓ $msg" -ForegroundColor Green }
@@ -39,13 +39,10 @@ function Ensure-Rust {
 }
 
 function Install-Reco {
-    Write-Step "Instalando reco…"
-    $here = Split-Path -Parent $PSScriptRoot
-    if (Test-Path (Join-Path $PSScriptRoot "..\crates\reco-cli\Cargo.toml")) {
-        $root = Resolve-Path (Join-Path $PSScriptRoot "..")
-        cargo install --path (Join-Path $root "crates\reco-cli") --locked --force
-    } else {
-        cargo install --git $RepoUrl --path crates/reco-cli --locked --force
+    Write-Step "Instalando reco (cargo install --git)…"
+    cargo install --git $RepoUrl --path crates/reco-cli --locked --force
+    if (-not $?) {
+        cargo install --git $RepoUrl --path crates/reco-cli --force
     }
     $reco = Join-Path $env:USERPROFILE ".cargo\bin\reco.exe"
     if (Test-Path $reco) {

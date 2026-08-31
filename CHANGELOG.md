@@ -3,11 +3,11 @@
 ## 0.3.1
 
 - **`reco` is a command menu** — arrows move, enter runs `reco ai`, `reco models`, `reco desktop`, `reco chat`, `reco run`, `reco serve`, `reco doctor`, `reco setup`, `reco hw`, `reco config`. `q` quits. `--list` prints the old text home. `reco menu` is the same screen.
-- **Install fix** — `curl | bash` no longer concatenates log lines into the cargo `--path` (that broke `reco-cli` on Pop!_OS). CLI installs with `cargo install --git`.
+- **Installer rewritten** — linear script, always `cargo install --git` with a hardcoded GitHub URL. Default is `reco` + `llama-cli`; `--desktop` is opt-in. Logs never land in a cargo `--path` (that broke Pop!_OS).
 
 ## 0.3.0
 
-- **One-command install** — `scripts/install.sh` (and `scripts/install.ps1` on Windows) installs Rust if needed, then `reco`, `llama-cli`, and the Tauri window when possible. Flags: `--no-desktop`, `--no-llama`, `--cli`.
+- **One-command install** — `scripts/install.sh` (and `scripts/install.ps1` on Windows) installs Rust if needed, then `reco` and `llama-cli`. The Tauri window is `--desktop`.
 - **`reco setup`** — first-run: llama.cpp, desktop window, keys.
 - **Desktop is the default chat** — `reco run` / `reco chat` / `reco ai` open Prueba; `--tui` stays in the terminal.
 - Product polish: one-command install as the documented path; packaging reserved for distro packages.

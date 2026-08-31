@@ -186,7 +186,7 @@ fn ventana_item() -> DoctorItem {
 }
 
 pub(crate) fn ventana_missing_hint() -> String {
-    INSTALL_ONE_LINER.to_string()
+    format!("{INSTALL_ONE_LINER} -s -- --desktop")
 }
 
 fn apis_item() -> DoctorItem {
@@ -251,6 +251,10 @@ mod tests {
         assert!(llama_missing_hint().contains("install.sh"));
         assert!(ventana_missing_hint().contains("install.sh"));
         assert_eq!(llama_missing_hint(), INSTALL_ONE_LINER);
-        assert_eq!(ventana_missing_hint(), INSTALL_ONE_LINER);
+        assert!(ventana_missing_hint().contains("--desktop"));
+        assert_eq!(
+            ventana_missing_hint(),
+            format!("{INSTALL_ONE_LINER} -s -- --desktop")
+        );
     }
 }

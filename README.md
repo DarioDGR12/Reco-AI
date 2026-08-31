@@ -28,7 +28,7 @@ The CLI is Spanish. This README is English.
 
 ## Quickstart
 
-One command. The installer installs Rust if needed, then `reco`, `llama-cli`, and the Tauri window when the machine can build it.
+One command. The installer installs Rust if needed, then `reco` and `llama-cli`. The Tauri window is opt-in (`--desktop`) so the first `curl | bash` stays short.
 
 **macOS / Linux**
 
@@ -36,16 +36,24 @@ One command. The installer installs Rust if needed, then `reco`, `llama-cli`, an
 curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash
 ```
 
+Then in **that same terminal**:
+
+```bash
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+source "$HOME/.cargo/env"
+reco
+```
+
 Flags (pass after `bash -s --`):
 
 | Flag | Effect |
 | --- | --- |
-| `--no-desktop` | Skip the Tauri window |
+| `--desktop` | Also build the Tauri window (slow) |
 | `--no-llama` | Skip `llama-cli` |
-| `--cli` | CLI only |
+| `--cli` | CLI only (no llama-cli, no window) |
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash -s -- --cli
+curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash -s -- --desktop
 ```
 
 **Windows** (PowerShell)
