@@ -57,8 +57,9 @@ irm https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.ps
 Then:
 
 ```bash
+reco                         # menú · flechas + enter (reco ai, reco models, …)
+reco --list                  # estado sin menú
 reco setup                   # first-run: llama.cpp, window, keys
-reco                         # hardware and next steps
 reco doctor                  # llama.cpp, keys, cache, window
 reco desktop                 # Prueba: catalog + chat
 reco ai                      # ranked catalog · enter opens the window
@@ -173,7 +174,7 @@ Cloud keys also read `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`.
 
 | | |
 | --- | --- |
-| `reco` | Home: hardware, engine, models on disk, recent chats |
+| `reco` | Arrow menu: `reco ai`, `reco models`, `reco desktop`, … (`--list` = text home) |
 | `reco setup` | First-run: llama.cpp, desktop window, keys |
 | `reco ai` | Ranked catalog (TUI). Enter opens Prueba |
 | `reco desktop [modelo]` | Tauri window: catalog, or chat if you pass a model |

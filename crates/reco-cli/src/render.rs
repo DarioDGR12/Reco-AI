@@ -246,6 +246,10 @@ pub fn print_home(
 
     println!("{}", "Siguiente".bold());
     println!(
+        "  {}  menú · flechas + enter",
+        "reco".cyan()
+    );
+    println!(
         "  {}  checklist (llama-cli, ventana, modelos)",
         "reco setup".cyan()
     );

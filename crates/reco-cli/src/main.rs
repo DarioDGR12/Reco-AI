@@ -1,5 +1,6 @@
 mod api;
 mod doctor;
+mod menu;
 mod prueba;
 mod render;
 mod run;
@@ -18,7 +19,8 @@ use reco_catalog::{
 use reco_core::hardware::fixtures;
 use reco_core::store::ChatStore;
 use reco_core::{
-    config_path, detect, recommend, resolve_spec, suggest_repos, RecoConfig, ResolveError,
+    config_path, detect, format_gib, recommend, resolve_spec, suggest_repos, RecoConfig,
+    ResolveError,
 };
 use render::{
     print_ai, print_config, print_doctor, print_home, print_hw, print_models, print_setup,
@@ -30,10 +32,15 @@ use setup::SetupShell;
     name = "reco",
     version,
     about = "Reco AI — elige y corre el modelo que cabe en tu máquina\nInstalar: curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash",
-    long_about = "Reco lee tu hardware, indexa GGUF en Hugging Face y te deja chatear o servir el modelo en un comando.\n\nSin argumentos muestra el estado de esta máquina. Elegir un modelo abre la ventana Tauri (Prueba); usa --tui si quieres el chat en la terminal.\n\nInstalar: curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash",
-    after_help = "Instalar:\n  curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash\n\nEjemplos:\n  reco                      estado y siguientes pasos\n  reco setup                checklist (llama-cli, ventana, modelos)\n  reco desktop              ventana Prueba (catálogo + chat)\n  reco ai                   catálogo · enter abre la ventana\n  reco run Qwen2.5-7B       descarga y abre Prueba\n  reco api create Qwen2.5-7B --name mi-app"
+    long_about = "Reco lee tu hardware, indexa GGUF en Hugging Face y te deja chatear o servir el modelo en un comando.\n\nSin argumentos abre el menú (flechas + enter). --list imprime el estado. Elegir un modelo abre la ventana Tauri (Prueba); --tui deja el chat en la terminal.\n\nInstalar: curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash",
+    after_help = "Instalar:\n  curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash\n\nEjemplos:\n  reco                      menú · flechas + enter\n  reco --list               estado sin menú\n  reco models               GGUF en disco\n  reco setup                checklist (llama-cli, ventana, modelos)\n  reco desktop              ventana Prueba (catálogo + chat)\n  reco ai                   catálogo · enter abre la ventana\n  reco run Qwen2.5-7B       descarga y abre Prueba"
 )]
 struct Cli {
+    /// Imprime el estado; no abre el menú
+    #[arg(long)]
+    list: bool,
+    #[arg(long, hide = true)]
+    fixture: Option<String>,
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -175,6 +182,11 @@ enum Commands {
     },
     /// Completados para bash, zsh o fish
     Completions { shell: Shell },
+    /// Menú de comandos (flechas + enter). Igual que `reco` sin argumentos
+    Menu {
+        #[arg(long, hide = true)]
+        fixture: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -266,7 +278,8 @@ enum ConfigCmd {
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        None => cmd_home(),
+        None => cmd_home(cli.list, cli.fixture),
+        Some(Commands::Menu { fixture }) => cmd_home(false, fixture.or(cli.fixture)),
         Some(Commands::Ai {
             json,
             list,
@@ -521,14 +534,138 @@ fn ensure_api(
     }
 }
 
-fn cmd_home() {
-    let profile = detect();
+fn cmd_home(plain: bool, fixture: Option<String>) {
+    let profile = resolve_profile(fixture.as_deref());
     let downloaded = list_downloaded();
     let recent = ChatStore::open(&cache_root().join("reco.db"))
         .ok()
         .and_then(|store| store.list_recent(6).ok())
         .unwrap_or_default();
-    print_home(&profile, &downloaded, &recent);
+    if plain || !io::stdout().is_terminal() {
+        print_home(&profile, &downloaded, &recent);
+        return;
+    }
+    let status = format!(
+        "{} · {} RAM · {} en disco  ·  ↑↓ enter",
+        profile.cpu.name,
+        format_gib(profile.memory.total_bytes),
+        downloaded.len()
+    );
+    loop {
+        match menu::run(&status) {
+            Ok(None) => return,
+            Ok(Some(choice)) => dispatch_menu(choice, fixture.as_deref()),
+            Err(err) => fail(format!("menú: {err}")),
+        }
+    }
+}
+
+fn dispatch_menu(choice: menu::Launch, fixture: Option<&str>) {
+    match choice {
+        menu::Launch::Catalog => {
+            cmd_ai(false, false, true, 12, false, false, fixture.map(str::to_string));
+        }
+        menu::Launch::Models => menu_models(fixture),
+        menu::Launch::Desktop => {
+            if let Err(err) = run::open_desktop_picker(false, "auto") {
+                eprintln!("{err}");
+                pause_menu();
+            }
+        }
+        menu::Launch::Chat => menu_chat(false, fixture),
+        menu::Launch::Run => menu_chat(true, fixture),
+        menu::Launch::Serve => {
+            if let Err(err) = api::start_named(None, None, None, false) {
+                eprintln!("{err}");
+                pause_menu();
+            }
+        }
+        menu::Launch::Doctor => {
+            print_doctor(&doctor::collect(&resolve_profile(fixture)), false);
+            pause_menu();
+        }
+        menu::Launch::Setup => {
+            print_setup(
+                &doctor::collect_setup(&resolve_profile(fixture)),
+                false,
+            );
+            pause_menu();
+        }
+        menu::Launch::Hardware => {
+            print_hw(&resolve_profile(fixture), false);
+            pause_menu();
+        }
+        menu::Launch::Config => {
+            print_config(&RecoConfig::load().masked(), false);
+            pause_menu();
+        }
+    }
+}
+
+fn menu_models(fixture: Option<&str>) {
+    let downloaded = list_downloaded();
+    if downloaded.is_empty() {
+        eprintln!("no hay GGUF en disco. Elige reco ai para ver el catálogo.");
+        pause_menu();
+        return;
+    }
+    match menu::pick_downloaded(&downloaded) {
+        Ok(Some(model)) => {
+            let spec = format!("{}:{}", model.repo_id, model.filename);
+            let rec = resolve_model(&spec, true, false, fixture);
+            if let Err(err) = run::open_prueba(&rec, false, "auto", false) {
+                eprintln!("{err}");
+                pause_menu();
+            }
+        }
+        Ok(None) => {}
+        Err(err) => fail(format!("menú: {err}")),
+    }
+}
+
+fn menu_chat(download: bool, fixture: Option<&str>) {
+    let downloaded = list_downloaded();
+    if !downloaded.is_empty() {
+        match menu::pick_downloaded(&downloaded) {
+            Ok(Some(model)) => {
+                let spec = format!("{}:{}", model.repo_id, model.filename);
+                let rec = resolve_model(&spec, !download, download, fixture);
+                if download {
+                    if let Err(err) = run::download_recommendation(&rec, false) {
+                        eprintln!("{err}");
+                        pause_menu();
+                        return;
+                    }
+                }
+                if let Err(err) = run::open_prueba(&rec, false, "auto", false) {
+                    eprintln!("{err}");
+                    pause_menu();
+                }
+            }
+            Ok(None) => {}
+            Err(err) => fail(format!("menú: {err}")),
+        }
+        return;
+    }
+    cmd_ai(
+        false,
+        false,
+        true,
+        12,
+        false,
+        false,
+        fixture.map(str::to_string),
+    );
+}
+
+fn pause_menu() {
+    if !io::stdout().is_terminal() {
+        return;
+    }
+    eprint!("enter para volver al menú… ");
+    let _ = io::Write::flush(&mut io::stderr());
+    let mut line = String::new();
+    let _ = io::stdin().read_line(&mut line);
 }
 
 fn cmd_config(action: ConfigCmd) {

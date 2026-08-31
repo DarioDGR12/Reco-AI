@@ -319,9 +319,9 @@ finish() {
   fi
   echo
   echo "  Siguiente:"
+  echo "    reco            # menú · flechas + enter"
   echo "    reco setup"
   echo "    reco desktop"
-  echo "    reco ai"
 }
 
 ensure_path

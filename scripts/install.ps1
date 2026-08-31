@@ -101,4 +101,4 @@ Write-Host ""
 if (Get-Command reco -ErrorAction SilentlyContinue) {
     reco setup
 }
-Write-Host "  Siguiente:  reco setup   ·   reco ai   ·   reco run --tui Qwen2.5-7B"
+Write-Host "  Siguiente:  reco   (menú · flechas + enter)   ·   reco setup"

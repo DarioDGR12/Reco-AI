@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- **`reco` is a command menu** — arrows move, enter runs `reco ai`, `reco models`, `reco desktop`, `reco chat`, `reco run`, `reco serve`, `reco doctor`, `reco setup`, `reco hw`, `reco config`. `q` quits. `--list` prints the old text home. `reco menu` is the same screen.
+
 ## 0.3.0
 
 - **One-command install** — `scripts/install.sh` (and `scripts/install.ps1` on Windows) installs Rust if needed, then `reco`, `llama-cli`, and the Tauri window when possible. Flags: `--no-desktop`, `--no-llama`, `--cli`.
