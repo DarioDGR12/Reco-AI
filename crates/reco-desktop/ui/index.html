@@ -10,10 +10,13 @@
     <section id="picker" class="view">
       <header class="picker-top">
         <div class="brand">
-          <strong>Reco AI</strong>
-          <span>Elige un modelo que cabe en esta máquina</span>
+          <span class="mark" aria-hidden="true">R</span>
+          <div class="brand-copy">
+            <strong>Reco</strong>
+            <span>Modelos locales que caben en esta máquina</span>
+          </div>
         </div>
-        <div class="hw" id="hw">
+        <div class="hw" id="hw" aria-label="Hardware de esta máquina">
           <span id="hw-cpu">…</span>
           <span id="hw-ram">…</span>
           <span id="hw-gpu">…</span>
@@ -30,30 +33,41 @@
         <div id="local" class="cards"></div>
       </div>
       <h2>Recomendados para ti</h2>
-      <div id="cards" class="cards"></div>
+      <p class="lead">Reco midió tu CPU, RAM y GPU. Elige uno y abre el chat aquí mismo.</p>
+      <div id="cards" class="cards" aria-live="polite"></div>
     </section>
 
     <section id="chat" class="view hidden">
       <aside>
         <div class="brand">
-          <strong>Prueba</strong>
-          <span>Reco AI</span>
+          <span class="mark sm" aria-hidden="true">R</span>
+          <div class="brand-copy">
+            <strong>Reco</strong>
+            <span>Prueba</span>
+          </div>
         </div>
-        <button type="button" id="back-models" class="ghost">← modelos</button>
-        <button type="button" id="new-chat">+ chat nuevo</button>
-        <nav id="convos"></nav>
+        <button type="button" id="back-models" class="ghost back">
+          <span>Catálogo</span>
+          <kbd>Esc</kbd>
+        </button>
+        <button type="button" id="new-chat">+ Chat nuevo</button>
+        <nav id="convos" aria-label="Conversaciones"></nav>
       </aside>
       <div class="main">
         <header>
           <div>
-            <h1 id="model">Reco AI</h1>
+            <h1 id="model">Reco</h1>
             <p id="engine" class="dim"></p>
           </div>
-          <span id="demo-badge" class="badge hidden">demo</span>
+          <div class="header-end">
+            <span id="demo-badge" class="badge hidden">demo</span>
+          </div>
         </header>
         <main id="log">
           <div class="empty" id="empty">
-            Elige un modelo y escribe aquí.
+            <span class="mark" aria-hidden="true">R</span>
+            <p class="empty-title">Esta conversación está lista</p>
+            <p>Escribe abajo. Reco responde con el modelo que abriste.</p>
           </div>
         </main>
         <footer>
@@ -61,10 +75,15 @@
             <textarea
               id="input"
               rows="1"
+              autocomplete="off"
+              spellcheck="true"
               placeholder="Mensaje…  Enter envía · Shift+Enter salto"
             ></textarea>
             <button type="submit" id="send">Enviar</button>
           </form>
+          <p id="composer-hint" class="composer-hint">
+            Enter envía · Shift+Enter salto de línea · Esc vuelve al catálogo
+          </p>
         </footer>
       </div>
     </section>
