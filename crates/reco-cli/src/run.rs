@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use owo_colors::OwoColorize;
 use reco_catalog::{
@@ -89,10 +89,7 @@ pub fn open_prueba(
                     "{}",
                     "sin reco-desktop; abriendo Prueba en la terminal.".dimmed()
                 );
-                eprintln!(
-                    "  {}",
-                    "ventana: scripts/build-desktop.sh   ·   forzar TUI: --tui".dimmed()
-                );
+                eprintln!("  {}", desktop_missing_message().dimmed());
             }
             Err(err) => return Err(err),
         }
@@ -114,9 +111,7 @@ pub fn open_desktop_picker(demo: bool, provider: &str) -> Result<(), String> {
             println!("{} {}", "Prueba".bold(), "ventana Tauri".cyan());
             Ok(())
         }
-        Ok(false) => Err(
-            "no encontré reco-desktop. Compílalo con scripts/build-desktop.sh y déjalo en PATH, en ~/.cargo/bin o junto a reco.".into(),
-        ),
+        Ok(false) => Err(desktop_missing_message()),
         Err(err) => Err(err),
     }
 }
@@ -185,35 +180,52 @@ fn look_on_path(name: &str) -> Option<PathBuf> {
     })
 }
 
+pub fn desktop_missing_message() -> String {
+    "no encontré reco-desktop (la ventana Tauri).\n\
+     \n\
+     En Pop!_OS / Ubuntu:\n\
+       sudo apt install -y nodejs npm pkg-config build-essential libgtk-3-dev \\\n\
+         libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev\n\
+       curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh -o /tmp/reco-install.sh\n\
+       bash /tmp/reco-install.sh --desktop\n\
+     \n\
+     Luego:  reco desktop"
+        .into()
+}
+
 fn try_launch_desktop(
     rec: Option<&Recommendation>,
     demo: bool,
     provider: &str,
 ) -> Result<bool, String> {
-    for bin in desktop_candidates() {
-        let mut cmd = Command::new(&bin);
-        if let Some(rec) = rec {
-            cmd.arg("--repo")
-                .arg(&rec.repo_id)
-                .arg("--file")
-                .arg(&rec.filename);
-        }
-        cmd.arg("--provider").arg(provider);
-        if demo {
-            cmd.arg("--demo");
-        }
-        match cmd.status() {
-            Ok(status) if status.success() => return Ok(true),
-            Ok(status) => {
-                return Err(format!("{} salió con {}", display_bin(&bin), status));
-            }
-            Err(err) if err.kind() == io::ErrorKind::NotFound => continue,
-            Err(err) => {
-                return Err(format!("no pude abrir {}: {err}", display_bin(&bin)));
-            }
-        }
+    let Some(bin) = desktop_binary() else {
+        return Ok(false);
+    };
+    let mut cmd = Command::new(&bin);
+    if let Some(rec) = rec {
+        cmd.arg("--repo")
+            .arg(&rec.repo_id)
+            .arg("--file")
+            .arg(&rec.filename);
     }
-    Ok(false)
+    cmd.arg("--provider").arg(provider);
+    if demo {
+        cmd.arg("--demo");
+    }
+    // NVIDIA + Wayland: WebKitGTK often starts and immediately dies or stays blank.
+    cmd.env("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    cmd.env("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+    cmd.stdin(Stdio::null());
+    cmd.stdout(Stdio::inherit());
+    cmd.stderr(Stdio::inherit());
+    match cmd.status() {
+        Ok(status) if status.success() => Ok(true),
+        Ok(status) => Err(format!(
+            "{} salió con {status}\n  prueba: WEBKIT_DISABLE_DMABUF_RENDERER=1 reco desktop",
+            display_bin(&bin)
+        )),
+        Err(err) => Err(format!("no pude abrir {}: {err}", display_bin(&bin))),
+    }
 }
 
 fn display_bin(path: &Path) -> String {
@@ -266,5 +278,13 @@ mod tests {
         let home = std::env::var("HOME").unwrap_or_else(|_| "/home/reco".into());
         let expected = PathBuf::from(&home).join(".cargo/bin/reco-desktop");
         assert!(desktop_candidates().contains(&expected));
+    }
+
+    #[test]
+    fn missing_window_points_at_desktop_install() {
+        let msg = desktop_missing_message();
+        assert!(msg.contains("install.sh"));
+        assert!(msg.contains("--desktop"));
+        assert!(msg.contains("reco desktop"));
     }
 }

@@ -2689,7 +2689,7 @@ dependencies = [
 
 [[package]]
 name = "reco-catalog"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dirs",
  "reco-core",
@@ -2701,7 +2701,7 @@ dependencies = [
 
 [[package]]
 name = "reco-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "dirs",
  "getrandom 0.2.17",
@@ -2715,7 +2715,7 @@ dependencies = [
 
 [[package]]
 name = "reco-desktop"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap",
  "reco-catalog",

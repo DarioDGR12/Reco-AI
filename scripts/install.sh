@@ -58,6 +58,52 @@ ok() { printf '    ✓ %s\n' "$*" >&2; }
 die() { printf '    ✗ %s\n' "$*" >&2; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# sudo needs a real TTY when this script is piped from curl.
+apt_install() {
+  have apt-get || return 1
+  if [[ -r /dev/tty ]]; then
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y "$@" </dev/tty
+  else
+    echo "    corre: sudo apt install -y $*" >&2
+    return 1
+  fi
+}
+
+install_desktop_window() {
+  if [[ "$(uname -s)" == Linux ]] && have apt-get; then
+    if ! have npm || ! pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
+      say "Instalando paquetes de Tauri (sudo)…"
+      apt_install nodejs npm pkg-config build-essential libgtk-3-dev \
+        libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+        patchelf libssl-dev \
+        || apt_install nodejs npm pkg-config build-essential libgtk-3-dev \
+          libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+          patchelf libssl-dev \
+        || return 1
+    fi
+  fi
+  have npm || {
+    echo "    falta npm. sudo apt install -y nodejs npm" >&2
+    return 1
+  }
+  mkdir -p "$(dirname "$SRC_DIR")"
+  if [[ -d "$SRC_DIR/.git" ]]; then
+    git -C "$SRC_DIR" fetch --depth 1 origin main
+    git -C "$SRC_DIR" checkout -q -B main FETCH_HEAD || true
+  else
+    rm -rf "$SRC_DIR"
+    git clone --depth 1 --branch main "$REPO" "$SRC_DIR"
+  fi
+  [[ -f "$SRC_DIR/scripts/build-desktop.sh" ]] || return 1
+  (cd "$SRC_DIR" && bash scripts/build-desktop.sh) || return 1
+  if [[ -x "$BIN_DIR/reco-desktop" || -x "$CARGO_BIN/reco-desktop" ]]; then
+    ok "ventana → $BIN_DIR/reco-desktop"
+    return 0
+  fi
+  echo "    build-desktop.sh no dejó reco-desktop en PATH" >&2
+  return 1
+}
+
 mkdir -p "$BIN_DIR" "$CARGO_BIN"
 export PATH="$BIN_DIR:$CARGO_BIN:$PATH"
 # shellcheck disable=SC1091
@@ -133,22 +179,17 @@ elif have llama-cli; then
 fi
 
 if [[ "$WANT_DESKTOP" == 1 ]]; then
-  say "Ventana Tauri (opcional)…"
-  if have git && have npm; then
-    mkdir -p "$(dirname "$SRC_DIR")"
-    if [[ -d "$SRC_DIR/.git" ]]; then
-      git -C "$SRC_DIR" fetch --depth 1 origin main
-      git -C "$SRC_DIR" checkout -q -B main FETCH_HEAD || true
-    else
-      rm -rf "$SRC_DIR"
-      git clone --depth 1 --branch main "$REPO" "$SRC_DIR"
-    fi
-    if [[ -f "$SRC_DIR/scripts/build-desktop.sh" ]]; then
-      (cd "$SRC_DIR" && bash scripts/build-desktop.sh) || true
-    fi
-  else
-    ok "sin git/npm: salto la ventana. reco --tui funciona"
-  fi
+  say "Ventana Tauri…"
+  install_desktop_window || {
+    echo >&2
+    echo "    reco quedó instalado, pero la ventana NO." >&2
+    echo "    En Pop!_OS / Ubuntu corre esto en la terminal (no con pipe):" >&2
+    echo "      sudo apt install -y nodejs npm pkg-config build-essential libgtk-3-dev \\" >&2
+    echo "        libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libssl-dev" >&2
+    echo "      curl -fsSL $REPO/raw/main/scripts/install.sh -o /tmp/reco-install.sh" >&2
+    echo "      bash /tmp/reco-install.sh --desktop" >&2
+    echo "    Luego:  reco desktop" >&2
+  }
 fi
 
 path_line='export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
@@ -173,4 +214,7 @@ if have reco; then
   "$CARGO_BIN/reco" --list || true
   echo
   echo "  reco            # menú · flechas + enter"
+  if have reco-desktop; then
+    echo "  reco desktop    # ventana Tauri"
+  fi
 fi

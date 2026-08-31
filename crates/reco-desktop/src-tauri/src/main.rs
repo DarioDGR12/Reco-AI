@@ -392,8 +392,31 @@ fn send_message(state: State<AppState>, text: String) -> Result<String, String> 
     Ok(reply)
 }
 
+fn parse_args() -> Args {
+    match Args::try_parse() {
+        Ok(args) => args,
+        Err(err) => {
+            if err.kind() == clap::error::ErrorKind::DisplayHelp
+                || err.kind() == clap::error::ErrorKind::DisplayVersion
+            {
+                let _ = err.print();
+                std::process::exit(0);
+            }
+            // Desktop launchers sometimes pass extra args. Open the window anyway.
+            Args {
+                repo: std::env::var("RECO_DESKTOP_REPO").ok().filter(|s| !s.is_empty()),
+                file: std::env::var("RECO_DESKTOP_FILE").ok().filter(|s| !s.is_empty()),
+                provider: "auto".into(),
+                demo: false,
+                offline: false,
+                refresh: false,
+            }
+        }
+    }
+}
+
 fn main() {
-    let args = Args::parse();
+    let args = parse_args();
     let repo_id = args
         .repo
         .or_else(|| std::env::var("RECO_DESKTOP_REPO").ok())

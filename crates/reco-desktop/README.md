@@ -8,7 +8,7 @@ This crate is **not** a workspace member: building it needs WebKitGTK (`libwebki
 
 ```bash
 # system deps (Debian/Ubuntu)
-sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+sudo apt install -y nodejs npm libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf pkg-config libgtk-3-dev
 
 # from the repo root (puts the binary in target/release/ next to reco)
 scripts/build-desktop.sh
