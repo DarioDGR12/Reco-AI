@@ -69,6 +69,95 @@ apt_install() {
   fi
 }
 
+# llama.cpp marks binary builds as prerelease. /releases/latest is v0.4.0
+# (nightly-tag.txt only) and has no llama-cli — that left Reco in demo mode.
+llama_download_url() {
+  local os machine pattern json
+  os="$(uname -s)"
+  machine="$(uname -m)"
+  case "$machine" in
+    x86_64|amd64) machine=x64 ;;
+    aarch64|arm64) machine=arm64 ;;
+  esac
+  case "$os" in
+    Darwin) pattern="llama-b[0-9]+-bin-macos-${machine}\\.tar\\.gz" ;;
+    Linux) pattern="llama-b[0-9]+-bin-ubuntu-${machine}\\.tar\\.gz" ;;
+    *) return 1 ;;
+  esac
+  json="$(curl -fsSL -H 'Accept: application/vnd.github+json' -H 'User-Agent: Reco-AI-install' \
+    'https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=20')" || return 1
+  printf '%s' "$json" | grep -oE "https://[^\"[:space:]]+${pattern}" | head -1
+}
+
+write_llama_wrapper() {
+  local dest="$1"
+  local wrapper="$2"
+  cat >"$wrapper" <<EOF
+#!/bin/sh
+DIR="$dest"
+export LD_LIBRARY_PATH="\$DIR\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+export DYLD_LIBRARY_PATH="\$DIR\${DYLD_LIBRARY_PATH:+:\$DYLD_LIBRARY_PATH}"
+exec "\$DIR/llama-cli" "\$@"
+EOF
+  chmod +x "$wrapper"
+}
+
+install_llama_cli() {
+  local dest="$HOME/.local/share/reco/llama"
+  if [[ -x "$dest/llama-cli" ]]; then
+    write_llama_wrapper "$dest" "$BIN_DIR/llama-cli"
+    write_llama_wrapper "$dest" "$CARGO_BIN/llama-cli"
+    "$CARGO_BIN/reco" config set llama-cli "$dest/llama-cli" >/dev/null || true
+    ok "llama-cli ya está → $dest/llama-cli"
+    return 0
+  fi
+  if have llama-cli; then
+    local existing
+    existing="$(command -v llama-cli)"
+    "$CARGO_BIN/reco" config set llama-cli "$existing" >/dev/null || true
+    ok "llama-cli ya está → $existing"
+    return 0
+  fi
+
+  say "Descargando llama-cli (llama.cpp)…"
+  local url tmp found
+  url="$(llama_download_url || true)"
+  if [[ -z "$url" ]]; then
+    echo "    no encontré un tarball ubuntu/macos en los releases bXXXX" >&2
+    return 1
+  fi
+  tmp="$(mktemp -d)"
+  if ! curl -fL --retry 3 -o "$tmp/llama.tgz" "$url"; then
+    rm -rf "$tmp"
+    echo "    no pude bajar $url" >&2
+    return 1
+  fi
+  tar -xzf "$tmp/llama.tgz" -C "$tmp"
+  found="$(find "$tmp" -type f \( -name llama-cli -o -name llama-completion \) | head -1 || true)"
+  if [[ -z "$found" ]]; then
+    rm -rf "$tmp"
+    echo "    el tarball no traía llama-cli" >&2
+    return 1
+  fi
+  rm -rf "$dest"
+  mkdir -p "$dest"
+  cp -a "$(dirname "$found")/." "$dest/"
+  if [[ ! -x "$dest/llama-cli" && -x "$dest/llama-completion" ]]; then
+    ln -sfn "$dest/llama-completion" "$dest/llama-cli"
+  fi
+  chmod +x "$dest/llama-cli" 2>/dev/null || true
+  write_llama_wrapper "$dest" "$BIN_DIR/llama-cli"
+  write_llama_wrapper "$dest" "$CARGO_BIN/llama-cli"
+  "$CARGO_BIN/reco" config set llama-cli "$dest/llama-cli" >/dev/null || true
+  rm -rf "$tmp"
+  if [[ ! -x "$dest/llama-cli" ]]; then
+    echo "    no quedó $dest/llama-cli" >&2
+    return 1
+  fi
+  ok "llama-cli → $dest/llama-cli"
+  ok "PATH → $BIN_DIR/llama-cli"
+}
+
 install_desktop_window() {
   if [[ "$(uname -s)" == Linux ]] && have apt-get; then
     if ! have npm || ! pkg-config --exists webkit2gtk-4.1 2>/dev/null; then
@@ -136,46 +225,14 @@ cargo install --git "$REPO" --branch main --locked --force reco-cli \
 ln -sfn "$CARGO_BIN/reco" "$BIN_DIR/reco"
 ok "reco → $CARGO_BIN/reco"
 
-if [[ "$WANT_LLAMA" == 1 ]] && ! have llama-cli && [[ ! -x "$BIN_DIR/llama-cli" ]]; then
-  say "Descargando llama-cli…"
-  os="$(uname -s)"
-  machine="$(uname -m)"
-  case "$machine" in
-    x86_64|amd64) machine=x64 ;;
-    aarch64|arm64) machine=arm64 ;;
-  esac
-  json="$(curl -fsSL -H 'Accept: application/vnd.github+json' \
-    https://api.github.com/repos/ggml-org/llama.cpp/releases/latest)" || json=""
-  tag="$(printf '%s' "$json" | sed -n 's/.*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-  asset=""
-  if [[ -n "$tag" ]]; then
-    case "$os" in
-      Darwin) asset="llama-${tag}-bin-macos-${machine}.tar.gz" ;;
-      Linux) asset="llama-${tag}-bin-ubuntu-${machine}.tar.gz" ;;
-    esac
-  fi
-  if [[ -n "$asset" ]]; then
-    tmp="$(mktemp -d)"
-    dest="$HOME/.local/share/reco/llama"
-    if curl -fsSL -o "$tmp/llama.tgz" \
-      "https://github.com/ggml-org/llama.cpp/releases/download/${tag}/${asset}"; then
-      tar -xzf "$tmp/llama.tgz" -C "$tmp"
-      found="$(find "$tmp" -type f \( -name llama-cli -o -name llama-completion \) | head -1 || true)"
-      if [[ -n "$found" ]]; then
-        rm -rf "$dest"
-        mkdir -p "$dest"
-        cp -a "$(dirname "$found")/." "$dest/"
-        chmod +x "$dest/$(basename "$found")"
-        ln -sfn "$dest/$(basename "$found")" "$BIN_DIR/llama-cli"
-        "$CARGO_BIN/reco" config set llama-cli "$BIN_DIR/llama-cli" >/dev/null || true
-        ok "llama-cli $tag → $BIN_DIR/llama-cli"
-      fi
-    fi
-    rm -rf "$tmp"
-  fi
-  have llama-cli || ok "sin llama-cli (puedes instalarlo luego). reco --demo sigue funcionando"
-elif have llama-cli; then
-  ok "llama-cli ya está"
+if [[ "$WANT_LLAMA" == 1 ]]; then
+  install_llama_cli || {
+    echo >&2
+    echo "    ✗ sin llama-cli: el chat queda en modo demo." >&2
+    echo "    El endpoint /releases/latest de llama.cpp es v0.4.0 (sin binarios)." >&2
+    echo "    Reintenta el instalador sin --no-llama." >&2
+    exit 1
+  }
 fi
 
 if [[ "$WANT_DESKTOP" == 1 ]]; then

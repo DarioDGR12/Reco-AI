@@ -59,11 +59,14 @@ function Install-Llama {
         return
     }
     Write-Step "Descargando llama-cli (llama.cpp)…"
-    $api = "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest"
-    $rel = Invoke-RestMethod -Uri $api -Headers @{ "User-Agent" = "Reco-AI-install" }
-    $asset = $rel.assets | Where-Object { $_.name -like "llama-*-bin-win-cpu-x64.zip" } | Select-Object -First 1
+    $api = "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=20"
+    $rels = Invoke-RestMethod -Uri $api -Headers @{ "User-Agent" = "Reco-AI-install" }
+    $asset = $rels |
+        ForEach-Object { $_.assets } |
+        Where-Object { $_.name -match '^llama-b\d+-bin-win-cpu-x64\.zip$' } |
+        Select-Object -First 1
     if (-not $asset) {
-        Write-Warn "no encontré el zip win-cpu-x64 de llama.cpp"
+        Write-Warn "no encontré el zip win-cpu-x64 en los releases bXXXX (no uses /releases/latest)"
         return
     }
     $zip = Join-Path $env:TEMP "reco-llama.zip"

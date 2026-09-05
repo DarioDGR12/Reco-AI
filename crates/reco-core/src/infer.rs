@@ -80,9 +80,14 @@ impl LlamaCliEngine {
                 return Some(found);
             }
         }
-        for name in ["llama-cli", "llama-completion", "main"] {
+        for name in ["llama-cli", "llama-completion"] {
             if let Some(found) = which(name) {
                 return Some(found);
+            }
+        }
+        for candidate in reco_llama_locations() {
+            if candidate.is_file() {
+                return Some(candidate);
             }
         }
         None
@@ -404,6 +409,22 @@ fn last_user(messages: &[ChatMessage]) -> &str {
         .unwrap_or("")
 }
 
+fn reco_llama_locations() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    if let Some(home) = std::env::var_os("HOME") {
+        let home = PathBuf::from(home);
+        out.push(home.join(".local/share/reco/llama/llama-cli"));
+        out.push(home.join(".local/bin/llama-cli"));
+        out.push(home.join(".cargo/bin/llama-cli"));
+    }
+    if let Ok(dir) = std::env::var("LOCALAPPDATA") {
+        let dir = PathBuf::from(dir);
+        out.push(dir.join("Reco/llama/llama-cli.exe"));
+        out.push(dir.join("Reco/bin/llama-cli.exe"));
+    }
+    out
+}
+
 fn which(name: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&path) {
@@ -500,5 +521,33 @@ mod tests {
         let found = LlamaCliEngine::find_binary(Some(fake.to_str().unwrap()));
         assert_eq!(found.as_deref(), Some(fake.as_path()));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn llama_cli_finds_reco_share_dir() {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let home = std::env::temp_dir().join(format!("reco-home-{stamp}"));
+        let dest = home.join(".local/share/reco/llama");
+        std::fs::create_dir_all(&dest).unwrap();
+        let fake = dest.join("llama-cli");
+        std::fs::write(&fake, b"ok").unwrap();
+        let old_home = std::env::var_os("HOME");
+        let old_path = std::env::var_os("PATH");
+        std::env::set_var("HOME", &home);
+        std::env::set_var("PATH", "");
+        let found = LlamaCliEngine::find_binary(None);
+        match old_home {
+            Some(v) => std::env::set_var("HOME", v),
+            None => std::env::remove_var("HOME"),
+        }
+        match old_path {
+            Some(v) => std::env::set_var("PATH", v),
+            None => std::env::remove_var("PATH"),
+        }
+        assert_eq!(found.as_deref(), Some(fake.as_path()));
+        let _ = std::fs::remove_dir_all(home);
     }
 }

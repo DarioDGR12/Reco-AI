@@ -6,6 +6,7 @@
 - **Installer rewritten** — linear script, always `cargo install --git … reco-cli` (package name, not `--path`; cargo 1.98 rejects `--git` + `--path`). Default is `reco` + `llama-cli`; `--desktop` is opt-in.
 - **Tauri window actually installs** — `--desktop` installs WebKit/Node via apt when missing, builds with `--no-bundle` (AppImage/deb used to fail and skip copying `reco-desktop`), and `reco desktop` sets WebKit env vars so the window appears on NVIDIA + Wayland.
 - **New-terminal snippet** — README documents the PATH block to paste in any new shell (`export PATH=…` + `source ~/.cargo/env` + `reco`). The installer writes it to `.bashrc` / `.profile` / `.zshrc` (and Fish when present).
+- **llama-cli actually installs** — llama.cpp’s `/releases/latest` is `v0.4.0` with no binaries (the real builds are prerelease `bXXXX`). The installer now picks `llama-b*-bin-ubuntu-x64` from the release list, writes `~/.local/share/reco/llama/llama-cli` + a PATH wrapper, and `reco config set llama-cli`. Without this, chat stayed in demo mode.
 
 ## 0.3.0
 
