@@ -36,13 +36,28 @@ One command. The installer installs Rust if needed, then `reco` and `llama-cli`.
 curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.sh | bash
 ```
 
-Then in **that same terminal**:
+**Any new terminal** (bash or zsh) — paste this and `reco` is on PATH:
 
 ```bash
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-source "$HOME/.cargo/env"
+[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 reco
 ```
+
+One line:
+
+```bash
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"; [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"; reco
+```
+
+Fish:
+
+```fish
+set -gx PATH $HOME/.local/bin $HOME/.cargo/bin $PATH
+reco
+```
+
+The installer also writes that PATH into `~/.bashrc`, `~/.profile`, and `~/.zshrc`. If a new terminal still says `command not found: reco`, paste the block above.
 
 Flags (pass after `bash -s --`):
 
@@ -60,6 +75,13 @@ curl -fsSL https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/ins
 
 ```powershell
 irm https://raw.githubusercontent.com/DarioDGR12/Reco-AI/main/scripts/install.ps1 | iex
+```
+
+Any new PowerShell:
+
+```powershell
+$env:Path = "$env:USERPROFILE\.local\bin;$env:USERPROFILE\.cargo\bin;$env:LOCALAPPDATA\Reco\bin;$env:Path"
+reco
 ```
 
 Then:

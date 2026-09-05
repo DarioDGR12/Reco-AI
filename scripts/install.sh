@@ -194,20 +194,28 @@ fi
 
 path_line='export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"'
 for rc in "$HOME/.bashrc" "$HOME/.profile" "$HOME/.zshrc"; do
-  if [[ -f "$rc" ]] && ! grep -q '.local/bin:$HOME/.cargo/bin' "$rc" 2>/dev/null; then
-    printf '\n# Reco AI\n%s\n[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"\n' "$path_line" >>"$rc"
+  touch "$rc"
+  if ! grep -q '.local/bin:$HOME/.cargo/bin' "$rc" 2>/dev/null; then
+    printf '\n# Reco AI — cualquier terminal nueva\n%s\n[ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"\n' "$path_line" >>"$rc"
     ok "PATH añadido a $rc"
   fi
 done
+if have fish; then
+  fish_cfg="$HOME/.config/fish/config.fish"
+  mkdir -p "$(dirname "$fish_cfg")"
+  touch "$fish_cfg"
+  if ! grep -q '.local/bin' "$fish_cfg" 2>/dev/null; then
+    printf '\n# Reco AI\nset -gx PATH $HOME/.local/bin $HOME/.cargo/bin $PATH\n' >>"$fish_cfg"
+    ok "PATH añadido a $fish_cfg"
+  fi
+fi
 
 say "Listo"
 echo
-echo "  En ESTA terminal:"
+echo "  Cualquier terminal nueva (cópialo):"
 echo "    export PATH=\"\$HOME/.local/bin:\$HOME/.cargo/bin:\$PATH\""
-echo "    source \"\$HOME/.cargo/env\""
+echo "    [ -f \"\$HOME/.cargo/env\" ] && . \"\$HOME/.cargo/env\""
 echo "    reco"
-echo
-echo "  (o cierra la terminal, abre otra, y escribe: reco)"
 echo
 export PATH="$BIN_DIR:$CARGO_BIN:$PATH"
 if have reco; then

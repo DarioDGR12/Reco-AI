@@ -5,6 +5,7 @@
 - **`reco` is a command menu** — arrows move, enter runs `reco ai`, `reco models`, `reco desktop`, `reco chat`, `reco run`, `reco serve`, `reco doctor`, `reco setup`, `reco hw`, `reco config`. `q` quits. `--list` prints the old text home. `reco menu` is the same screen.
 - **Installer rewritten** — linear script, always `cargo install --git … reco-cli` (package name, not `--path`; cargo 1.98 rejects `--git` + `--path`). Default is `reco` + `llama-cli`; `--desktop` is opt-in.
 - **Tauri window actually installs** — `--desktop` installs WebKit/Node via apt when missing, builds with `--no-bundle` (AppImage/deb used to fail and skip copying `reco-desktop`), and `reco desktop` sets WebKit env vars so the window appears on NVIDIA + Wayland.
+- **New-terminal snippet** — README documents the PATH block to paste in any new shell (`export PATH=…` + `source ~/.cargo/env` + `reco`). The installer writes it to `.bashrc` / `.profile` / `.zshrc` (and Fish when present).
 
 ## 0.3.0
 
